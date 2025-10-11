@@ -27,12 +27,14 @@ export const getSubscriptionFee = (type: string) => {
 
 export const getStatusClass = (status: Listing['status']) => {
     switch (status) {
-      case 'Vacant':
-        return 'bg-green-500 text-white hover:bg-green-600';
-      case 'Occupied':
+      case 'published':
+        return 'bg-emerald-500 text-white hover:bg-emerald-600';
+      case 'pending_approval':
+        return 'bg-amber-500 text-white hover:bg-amber-600';
+      case 'rented':
+        return 'bg-slate-500 text-white hover:bg-slate-600';
+      case 'rejected':
         return 'bg-red-500 text-white hover:bg-red-600';
-      case 'Available Soon':
-        return 'bg-orange-500 text-white hover:bg-orange-600';
       default:
         return 'bg-gray-500 text-white hover:bg-gray-600';
     }

@@ -19,6 +19,7 @@ import {
 } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
 import { type Listing } from '@/types';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { Button } from '@/components/ui/button';
@@ -31,17 +32,17 @@ import {
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
-import { MapPin, PlusCircle, Repeat, Loader2, CalendarClock, BarChart3, LayoutGrid, Minus, Plus, Building2 } from 'lucide-react';
+import { MapPin, PlusCircle, Loader2, Hourglass, CheckCircle2, XCircle, BarChart3, LayoutGrid, Minus, Plus, Building2, ShieldAlert } from 'lucide-react';
 import { DeleteListingDialog } from '@/components/delete-listing-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { AddListingModal } from '@/components/add-listing-modal';
-import { VacancyPaymentModal } from '@/components/vacancy-payment-modal';
 import { getPropertyIcon, getStatusClass } from '@/lib/utils';
 import { DefaultPlaceholder } from '@/components/default-placeholder';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LandlordAnalytics } from './analytics';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 function ListingSkeleton() {
   return (
@@ -68,49 +69,52 @@ export default function MyListingsPage() {
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [updatingUnitsId, setUpdatingUnitsId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [pendingStatusChange, setPendingStatusChange] = useState<{
-    listingId: string;
-    newStatus: Listing['status'];
-    propertyType: string;
-  } | null>(null);
-  const [pendingUnitAdjustment, setPendingUnitAdjustment] = useState<{
-    listingId: string;
-    adjustment: number;
-    currentAvailable: number;
-    totalUnits: number;
-    propertyType: string;
-  } | null>(null);
 
   
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+  const { profile, loading: profileLoading } = useUserProfile();
+  const isVerifiedLandlord = profile?.role === 'landlord' && profile.landlordApplicationStatus === 'approved';
+  const isPendingVerification = profile?.role === 'landlord' && profile.landlordApplicationStatus === 'pending';
+  const isRejected = profile?.landlordApplicationStatus === 'rejected';
 
 
   useEffect(() => {
-    if (isUserLoading) return;
+    if (isUserLoading || profileLoading) {
+      return;
+    }
+
     if (!user) {
       router.push('/login');
       return;
     }
 
+    if (!db || !isVerifiedLandlord) {
+      setListings([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    const q = query(
-        collection(db, 'listings'), 
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc')
+    const listingsQuery = query(
+      collection(db, 'listings'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, querySnapshot => {
+    const unsubscribe = onSnapshot(
+      listingsQuery,
+      querySnapshot => {
         const userListings = querySnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
         })) as Listing[];
         setListings(userListings);
         setLoading(false);
-    }, (error) => {
+      },
+      error => {
         console.error('Error fetching user listings:', error);
         toast({
           variant: 'destructive',
@@ -118,13 +122,14 @@ export default function MyListingsPage() {
           description: 'Could not load your properties. Please try again.',
         });
         setLoading(false);
-    });
+      }
+    );
 
     return () => unsubscribe();
-  }, [user, isUserLoading, db, router, toast]);
+  }, [user, isUserLoading, profileLoading, db, router, toast, isVerifiedLandlord]);
 
   const handleDelete = async (listingId: string) => {
-    if (!user) return;
+    if (!user || !db) return;
     try {
       await deleteDoc(doc(db, 'listings', listingId));
       const userRef = doc(db, 'users', user.uid);
@@ -146,51 +151,50 @@ export default function MyListingsPage() {
     }
   };
 
-  const handleToggleStatus = async (listingId: string, currentStatus: Listing['status']) => {
-    const listing = listings.find(l => l.id === listingId);
-    if (!listing) return;
+  const handleToggleAvailability = async (listing: Listing) => {
+    if (!db) return;
 
-    let newStatus: Listing['status'];
-    switch (currentStatus) {
-        case 'Vacant':
-            newStatus = 'Occupied';
-            break;
-        case 'Occupied':
-            newStatus = 'Available Soon';
-            break;
-        case 'Available Soon':
-            newStatus = 'Vacant';
-            break;
-        default:
-            newStatus = 'Vacant';
-    }
-
-    // Check if changing TO Vacant - require payment
-    if (newStatus === 'Vacant') {
-      setPendingStatusChange({
-        listingId,
-        newStatus,
-        propertyType: listing.type,
+    if (listing.status === 'pending_approval') {
+      toast({
+        title: 'Pending review',
+        description: 'This listing is awaiting admin approval before it can go live.',
       });
-      setShowPaymentModal(true);
       return;
     }
 
-    // For non-vacancy changes, proceed directly
-    setUpdatingStatusId(listingId);
-    
-    try {
-      const listingRef = doc(db, 'listings', listingId);
-      await updateDoc(listingRef, { status: newStatus });
+    if (listing.status === 'rejected') {
       toast({
-        title: 'Status Updated',
-        description: `Your property is now marked as ${newStatus}.`,
+        variant: 'destructive',
+        title: 'Listing rejected',
+        description: 'Please update your listing details and contact support for another review.',
+      });
+      return;
+    }
+
+    const isCurrentlyPublished = listing.status === 'published';
+    const newStatus: Listing['status'] = isCurrentlyPublished ? 'rented' : 'published';
+    const total = listing.totalUnits ?? 1;
+    const newAvailableUnits = newStatus === 'published' ? Math.max(1, total) : 0;
+
+    setUpdatingStatusId(listing.id);
+
+    try {
+      await updateDoc(doc(db, 'listings', listing.id), {
+        status: newStatus,
+        availableUnits: newAvailableUnits,
+      });
+
+      toast({
+        title: newStatus === 'published' ? 'Listing published' : 'Listing marked as rented',
+        description: newStatus === 'published'
+          ? 'Your property is now visible to renters.'
+          : 'Your property is no longer visible in search results.',
       });
     } catch (error) {
       console.error('Error updating status:', error);
       toast({
         variant: 'destructive',
-        title: 'Update Failed',
+        title: 'Update failed',
         description: 'Could not update the listing status. Please try again.',
       });
     } finally {
@@ -198,56 +202,55 @@ export default function MyListingsPage() {
     }
   };
 
-  const getNextStatus = (currentStatus: Listing['status']): Listing['status'] => {
-     switch (currentStatus) {
-        case 'Vacant': return 'Occupied';
-        case 'Occupied': return 'Available Soon';
-        case 'Available Soon': return 'Vacant';
-        default: return 'Vacant';
-    }
-  }
+  const handleAdjustUnits = async (listingId: string, adjustment: number) => {
+    if (!db) return;
 
-  const handleAdjustUnits = async (listingId: string, adjustment: number, currentAvailable: number, totalUnits: number) => {
     const listing = listings.find(l => l.id === listingId);
     if (!listing) return;
 
-    const newAvailable = Math.max(0, Math.min(totalUnits, currentAvailable + adjustment));
-
-    // Auto-determine status based on availability
-    const newStatus: Listing['status'] = newAvailable > 0 ? 'Vacant' : 'Occupied';
-
-    // Check if increasing units from 0 → vacant - require payment
-    if (currentAvailable === 0 && newAvailable > 0) {
-      setPendingUnitAdjustment({
-        listingId,
-        adjustment,
-        currentAvailable,
-        totalUnits,
-        propertyType: listing.type,
+    if (listing.status === 'pending_approval') {
+      toast({
+        title: 'Pending review',
+        description: 'Units cannot be updated until the listing is approved.',
       });
-      setShowPaymentModal(true);
       return;
     }
 
-    // For decreasing units or other changes, proceed directly
+    if (listing.status === 'rejected') {
+      toast({
+        variant: 'destructive',
+        title: 'Listing rejected',
+        description: 'Please update the listing and request another review before modifying units.',
+      });
+      return;
+    }
+
+    const totalUnits = listing.totalUnits ?? 1;
+    const currentAvailable = listing.availableUnits ?? 0;
+    const newAvailable = Math.max(0, Math.min(totalUnits, currentAvailable + adjustment));
+    const newStatus: Listing['status'] = newAvailable === 0 ? 'rented' : 'published';
+
+    if (newAvailable === currentAvailable && listing.status === newStatus) {
+      return;
+    }
+
     setUpdatingUnitsId(listingId);
 
     try {
-      const listingRef = doc(db, 'listings', listingId);
-      await updateDoc(listingRef, {
+      await updateDoc(doc(db, 'listings', listingId), {
         availableUnits: newAvailable,
-        status: newStatus
+        status: newStatus,
       });
 
       toast({
-        title: 'Units Updated',
-        description: `${newAvailable} of ${totalUnits} units now available. Status: ${newStatus}`,
+        title: 'Units updated',
+        description: `${newAvailable} of ${totalUnits} units now available.`,
       });
     } catch (error) {
       console.error('Error updating units:', error);
       toast({
         variant: 'destructive',
-        title: 'Update Failed',
+        title: 'Update failed',
         description: 'Could not update available units. Please try again.',
       });
     } finally {
@@ -255,78 +258,117 @@ export default function MyListingsPage() {
     }
   };
 
-  const handlePaymentConfirmed = async () => {
-    if (pendingStatusChange) {
-      // Handle status change after payment
-      const { listingId, newStatus } = pendingStatusChange;
-      setUpdatingStatusId(listingId);
-      
-      try {
-        const listingRef = doc(db, 'listings', listingId);
-        // Set as Occupied with pending payment flag instead of Vacant
-        await updateDoc(listingRef, { 
-          status: 'Occupied',
-          pendingVacancyPayment: true 
-        });
-        
-        toast({
-          title: 'Payment Confirmed',
-          description: 'Your listing is pending admin verification. It will show as vacant once payment is confirmed.',
-        });
-      } catch (error) {
-        console.error('Error updating status:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Update Failed',
-          description: 'Could not update the listing status. Please try again.',
-        });
-      } finally {
-        setUpdatingStatusId(null);
-        setPendingStatusChange(null);
-      }
-    } else if (pendingUnitAdjustment) {
-      // Handle unit adjustment after payment
-      const { listingId, adjustment, currentAvailable, totalUnits } = pendingUnitAdjustment;
-      setUpdatingUnitsId(listingId);
-      
-      try {
-        const newAvailable = Math.max(0, Math.min(totalUnits, currentAvailable + adjustment));
-        const listingRef = doc(db, 'listings', listingId);
-        
-        // Set available units but keep as Occupied with pending payment flag
-        await updateDoc(listingRef, {
-          availableUnits: newAvailable,
-          status: 'Occupied', // Keep as occupied until admin approves
-          pendingVacancyPayment: true
-        });
-        
-        toast({
-          title: 'Payment Confirmed',
-          description: 'Your units update is pending admin verification. Units will show as vacant once payment is confirmed.',
-        });
-      } catch (error) {
-        console.error('Error updating units:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Update Failed',
-          description: 'Could not update available units. Please try again.',
-        });
-      } finally {
-        setUpdatingUnitsId(null);
-        setPendingUnitAdjustment(null);
-      }
+  const getStatusLabel = (status: Listing['status']) => {
+    switch (status) {
+      case 'pending_approval':
+        return 'Pending Approval';
+      case 'published':
+        return 'Published';
+      case 'rented':
+        return 'Fully Rented';
+      case 'rejected':
+        return 'Rejected';
+      default:
+        return status;
     }
   };
 
-  const getPropertyTypeForPayment = () => {
-    if (pendingStatusChange) {
-      return pendingStatusChange.propertyType;
+  const getStatusIcon = (status: Listing['status']) => {
+    switch (status) {
+      case 'pending_approval':
+        return <Hourglass className="mr-1.5 h-4 w-4" />;
+      case 'published':
+        return <CheckCircle2 className="mr-1.5 h-4 w-4" />;
+      case 'rented':
+        return <Building2 className="mr-1.5 h-4 w-4" />;
+      case 'rejected':
+        return <XCircle className="mr-1.5 h-4 w-4" />;
+      default:
+        return null;
     }
-    if (pendingUnitAdjustment) {
-      return pendingUnitAdjustment.propertyType;
-    }
-    return '';
   };
+
+  if (isUserLoading || profileLoading) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header onPostClick={() => {}} />
+        <main className="flex flex-1 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  if (!isVerifiedLandlord) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header onPostClick={() => {}} />
+        <main className="flex-grow max-w-3xl mx-auto py-12 px-4 sm:px-6 lg:px-8 w-full">
+          <div className="space-y-6">
+            <h1 className="text-3xl font-bold text-foreground">Landlord Verification Required</h1>
+            {profile?.role !== 'landlord' ? (
+              <Alert>
+                <AlertTitle className="flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4" />
+                  Become a Landlord
+                </AlertTitle>
+                <AlertDescription className="space-y-4">
+                  <p>
+                    You&apos;re currently registered as a renter. Apply to become a landlord to unlock property listing tools.
+                  </p>
+                  <Button asChild>
+                    <Link href="/become-landlord">Start landlord verification</Link>
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : isPendingVerification ? (
+              <Alert>
+                <AlertTitle className="flex items-center gap-2">
+                  <Hourglass className="h-4 w-4" />
+                  Verification in Progress
+                </AlertTitle>
+                <AlertDescription>
+                  Your landlord verification payment has been received. Our admin team will review and approve your account shortly.
+                  We&apos;ll email you once you&apos;re ready to start posting listings.
+                </AlertDescription>
+              </Alert>
+            ) : isRejected ? (
+              <Alert variant="destructive">
+                <AlertTitle className="flex items-center gap-2">
+                  <XCircle className="h-4 w-4" />
+                  Verification Rejected
+                </AlertTitle>
+                <AlertDescription className="space-y-3">
+                  <p>
+                    Your landlord verification was rejected. Please review the feedback sent to your email and resubmit the required information.
+                  </p>
+                  <Button asChild variant="outline">
+                    <Link href="/become-landlord">Resubmit verification</Link>
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Alert>
+                <AlertTitle className="flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4" />
+                  Verification Required
+                </AlertTitle>
+                <AlertDescription>
+                  Complete the landlord verification process to unlock listing management features.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -361,7 +403,16 @@ export default function MyListingsPage() {
               </div>
             ) : listings.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {listings.map(listing => (
+            {listings.map(listing => {
+              const totalUnits = listing.totalUnits ?? 1;
+              const availableUnits = listing.availableUnits ?? 0;
+              const isMultiUnit = totalUnits > 1;
+              const isPendingStatus = listing.status === 'pending_approval';
+              const isRejectedStatus = listing.status === 'rejected';
+              const canAdjustUnits = !isPendingStatus && !isRejectedStatus;
+              const canToggleStatus = ['published', 'rented'].includes(listing.status);
+
+              return (
               <Card key={listing.id} className="overflow-hidden flex flex-col h-full">
                 <Link href={`/listings/${listing.id}`} className="block">
                   <div className="relative w-full h-56 flex-shrink-0 overflow-hidden bg-muted">
@@ -378,14 +429,14 @@ export default function MyListingsPage() {
                         <DefaultPlaceholder type={listing.type} />
                       </div>
                     )}
-                      <Badge
+                    <Badge
                       className={cn(
                         "absolute top-3 right-3 text-sm z-10",
                         getStatusClass(listing.status)
                       )}
                     >
-                      {listing.status === 'Available Soon' && <CalendarClock className="mr-1.5 h-4 w-4" />}
-                      {listing.status}
+                      {getStatusIcon(listing.status)}
+                      {getStatusLabel(listing.status)}
                     </Badge>
                   </div>
                 </Link>
@@ -406,32 +457,41 @@ export default function MyListingsPage() {
                       {getPropertyIcon(listing.type)} {listing.type}
                     </p>
                   </div>
+                  {listing.status === 'pending_approval' && (
+                    <p className="mt-3 flex items-center gap-2 text-sm font-medium text-amber-600">
+                      <Hourglass className="h-4 w-4" /> Awaiting admin approval
+                    </p>
+                  )}
+                  {listing.status === 'rejected' && (
+                    <p className="mt-3 flex items-center gap-2 text-sm font-medium text-destructive">
+                      <XCircle className="h-4 w-4" /> Listing rejected{listing.rejectionReason ? `: ${listing.rejectionReason}` : ''}
+                    </p>
+                  )}
                   {/* Multi-unit indicator */}
                   {listing.totalUnits && listing.totalUnits > 1 && (
                     <div className="mt-3 pt-3 border-t">
                       <Badge variant="secondary" className="gap-1">
                         <Building2 className="h-3 w-3" />
-                        {listing.availableUnits || 0} of {listing.totalUnits} units available
+                        {availableUnits} of {totalUnits} units available
                       </Badge>
                     </div>
                   )}
                 </CardHeader>
                 <CardFooter className="border-t p-4 mt-auto flex flex-col gap-3">
                   {/* Multi-unit controls */}
-                  {listing.totalUnits && listing.totalUnits > 1 ? (
+                  {isMultiUnit ? (
                     <div className="flex items-center justify-between w-full gap-2">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleAdjustUnits(
                           listing.id,
-                          -1,
-                          listing.availableUnits || 0,
-                          listing.totalUnits || 1
+                          -1
                         )}
                         disabled={
                           updatingUnitsId === listing.id ||
-                          (listing.availableUnits || 0) <= 0
+                          availableUnits <= 0 ||
+                          !canAdjustUnits
                         }
                       >
                         {updatingUnitsId === listing.id ? (
@@ -442,10 +502,10 @@ export default function MyListingsPage() {
                       </Button>
                       <div className="flex-1 text-center">
                         <p className="text-sm font-semibold">
-                          {listing.availableUnits || 0} / {listing.totalUnits} available
+                          {availableUnits} / {totalUnits} available
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {listing.status}
+                          {getStatusLabel(listing.status)}
                         </p>
                       </div>
                       <Button
@@ -453,13 +513,12 @@ export default function MyListingsPage() {
                         variant="outline"
                         onClick={() => handleAdjustUnits(
                           listing.id,
-                          1,
-                          listing.availableUnits || 0,
-                          listing.totalUnits || 1
+                          1
                         )}
                         disabled={
                           updatingUnitsId === listing.id ||
-                          (listing.availableUnits || 0) >= listing.totalUnits
+                          availableUnits >= totalUnits ||
+                          !canAdjustUnits
                         }
                       >
                         {updatingUnitsId === listing.id ? (
@@ -476,22 +535,28 @@ export default function MyListingsPage() {
                       <Button
                           variant="outline"
                           className="flex-1"
-                          onClick={() => handleToggleStatus(listing.id, listing.status)}
-                          disabled={updatingStatusId === listing.id}
+                          onClick={() => handleToggleAvailability(listing)}
+                          disabled={
+                            updatingStatusId === listing.id ||
+                            !canToggleStatus
+                          }
                       >
                         {updatingStatusId === listing.id ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : listing.status === 'published' ? (
+                          <XCircle className="mr-2 h-4 w-4" />
                         ) : (
-                          <Repeat className="mr-2 h-4 w-4" />
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
                         )}
-                         Mark as {getNextStatus(listing.status)}
+                         {listing.status === 'published' ? 'Mark as rented' : 'Mark as available'}
                       </Button>
                       <DeleteListingDialog onConfirm={() => handleDelete(listing.id)} />
                     </div>
                   )}
                 </CardFooter>
               </Card>
-            ))}
+              );
+            })}
           </div>
             ) : (
               <div className="text-center py-20 bg-card rounded-xl border border-dashed">
@@ -520,14 +585,6 @@ export default function MyListingsPage() {
           onClose={() => setIsModalOpen(false)}
         />
       )}
-      
-      <VacancyPaymentModal
-        open={showPaymentModal}
-        onOpenChange={setShowPaymentModal}
-        propertyType={getPropertyTypeForPayment()}
-        onPaymentConfirmed={handlePaymentConfirmed}
-        isLoading={updatingStatusId !== null || updatingUnitsId !== null}
-      />
     </div>
     </>
   );

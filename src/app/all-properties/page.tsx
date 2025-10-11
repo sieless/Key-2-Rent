@@ -114,41 +114,35 @@ export default function AllPropertiesPage() {
   };
 
   const filteredListings = useMemo(() => {
-    // Apply filters
     const filtered = listings.filter(listing => {
       const locationMatch =
         filters.location === 'All' || listing.location === filters.location;
       const typeMatch = filters.type === 'All' || listing.type === filters.type;
       const priceMatch = listing.price <= filters.maxPrice;
-      const statusMatch = filters.status === 'All' || listing.status === filters.status;
+      const statusMatch = filters.status === 'All'
+        ? listing.status === 'published'
+        : listing.status === filters.status;
       return locationMatch && typeMatch && priceMatch && statusMatch;
     });
 
-    // Smart sorting: Featured → Boosted → Vacant → Available Soon → Occupied
-    // Within each tier, sort by createdAt (newest first)
     return filtered.sort((a, b) => {
-      // Priority 1: Featured listings at top
       if (a.isFeatured && !b.isFeatured) return -1;
       if (!a.isFeatured && b.isFeatured) return 1;
 
-      // Priority 2: Boosted listings
       if (a.isBoosted && !b.isBoosted) return -1;
       if (!a.isBoosted && b.isBoosted) return 1;
 
-      // Priority 3: Vacancy status (Vacant > Available Soon > Occupied)
       const statusPriority: Record<string, number> = {
-        'Vacant': 3,
-        'Available Soon': 2,
-        'Occupied': 1,
+        published: 3,
+        rented: 2,
       };
       const aPriority = statusPriority[a.status] || 0;
       const bPriority = statusPriority[b.status] || 0;
 
       if (aPriority !== bPriority) {
-        return bPriority - aPriority; // Higher priority first
+        return bPriority - aPriority;
       }
 
-      // Priority 4: Within same tier, sort by creation date (newest first)
       const aTime = a.createdAt?.toMillis() || 0;
       const bTime = b.createdAt?.toMillis() || 0;
       return bTime - aTime;

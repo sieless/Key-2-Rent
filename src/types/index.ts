@@ -1,6 +1,10 @@
 'use server';
 import { type Timestamp } from 'firebase/firestore';
 
+export type ListingStatus = 'pending_approval' | 'published' | 'rented' | 'rejected';
+export type UserRole = 'renter' | 'landlord';
+export type LandlordApplicationStatus = 'pending_approval' | 'approved' | 'rejected';
+
 export type Listing = {
   id: string;
   userId: string;
@@ -15,11 +19,14 @@ export type Listing = {
   images: string[];
   contact: string;
   createdAt: Timestamp;
-  status: 'Vacant' | 'Occupied' | 'Available Soon';
+  status: ListingStatus;
 
   // Multi-unit support
-  totalUnits?: number;               // Total units in property (default: 1)
-  availableUnits?: number;           // How many units are currently available
+  totalUnits: number;               // Total units in property (default: 1)
+  availableUnits: number;           // How many units are currently available
+  approvedAt?: Timestamp;           // When listing was approved/published
+  approvedBy?: string;              // Admin email who approved the listing
+  rejectionReason?: string;         // If rejected, reason provided by admin
 
   // Featured listing fields (activated when admin enables feature)
   isFeatured?: boolean;              // Is this a featured listing?
@@ -48,17 +55,21 @@ export type ListingFormData = {
   contact: string;
   images: File[];
   features: string[];
-  status: 'Vacant' | 'Occupied' | 'Available Soon';
-  totalUnits?: number | '';
-  availableUnits?: number | '';
+  totalUnits: number;
+  availableUnits: number;
 }
 
 export type UserProfile = {
     id: string;
-    email: string;
+    email: string | null;
     name: string;
     listings: string[];
     canViewContacts: boolean;
+    role: UserRole;
+    landlordApplicationStatus?: 'none' | 'pending' | 'approved' | 'rejected';
+    landlordApplicationId?: string;
+    isTrustedLandlord?: boolean;
+    phoneNumber?: string | null;
     createdAt?: Timestamp;
     suspended?: boolean;
 }
@@ -307,4 +318,17 @@ export type SignedAgreement = {
   // Timestamps
   signedAt: Timestamp;
   createdAt: Timestamp;
+};
+
+export type LandlordApplication = {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail?: string | null;
+  paymentTransactionId: string;
+  status: LandlordApplicationStatus;
+  createdAt: Timestamp;
+  reviewedAt?: Timestamp;
+  reviewedBy?: string;
+  notes?: string;
 };

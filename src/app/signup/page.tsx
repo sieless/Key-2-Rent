@@ -7,7 +7,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile, RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from 'firebase/auth';
-import { setDoc, doc } from 'firebase/firestore';
+import { setDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { useAuth, useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Mail, Phone, Eye, EyeOff } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Logo } from '@/components/logo';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 declare global {
   interface Window {
@@ -41,6 +42,7 @@ export default function SignupPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [activeTab, setActiveTab] = useState('email');
   const [showPassword, setShowPassword] = useState(false);
+  const [role, setRole] = useState<'renter' | 'landlord'>('renter');
 
   const auth = useAuth();
   const db = useFirestore();
@@ -98,6 +100,9 @@ export default function SignupPage() {
         id: user.uid,
         listings: [],
         canViewContacts: true, // FREE LAUNCH: All users can view contacts
+        role,
+        landlordApplicationStatus: role === 'landlord' ? 'pending' : 'none',
+        createdAt: serverTimestamp(),
       });
 
       toast({ title: 'Account Created', description: 'You have been successfully signed up.' });
@@ -125,6 +130,9 @@ export default function SignupPage() {
         id: user.uid,
         listings: [],
         canViewContacts: true, // FREE LAUNCH: All users can view contacts
+        role,
+        landlordApplicationStatus: role === 'landlord' ? 'pending' : 'none',
+        createdAt: serverTimestamp(),
       });
 
       toast({ title: 'Account Created', description: 'You have been successfully signed up.' });
@@ -158,6 +166,27 @@ export default function SignupPage() {
                 <div className="grid gap-2">
                   <Label htmlFor="name-email">Name</Label>
                   <Input id="name-email" placeholder="John Doe" required value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>What is your primary role?</Label>
+                  <RadioGroup
+                    value={role}
+                    onValueChange={(value) => setRole(value as 'renter' | 'landlord')}
+                    className="grid grid-cols-1 gap-3"
+                  >
+                    <div className="flex items-center space-x-3 rounded-md border p-3">
+                      <RadioGroupItem value="renter" id="role-renter-email" />
+                      <Label htmlFor="role-renter-email" className="font-medium cursor-pointer">
+                        I'm looking for a place to rent
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-3 rounded-md border p-3">
+                      <RadioGroupItem value="landlord" id="role-landlord-email" />
+                      <Label htmlFor="role-landlord-email" className="font-medium cursor-pointer">
+                        I want to list a property
+                      </Label>
+                    </div>
+                  </RadioGroup>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="email">Email</Label>
@@ -200,6 +229,27 @@ export default function SignupPage() {
                   <div className="grid gap-2">
                     <Label htmlFor="name-phone">Name</Label>
                     <Input id="name-phone" placeholder="John Doe" required value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>What is your primary role?</Label>
+                    <RadioGroup
+                      value={role}
+                      onValueChange={(value) => setRole(value as 'renter' | 'landlord')}
+                      className="grid grid-cols-1 gap-3"
+                    >
+                      <div className="flex items-center space-x-3 rounded-md border p-3">
+                        <RadioGroupItem value="renter" id="role-renter-phone" />
+                        <Label htmlFor="role-renter-phone" className="font-medium cursor-pointer">
+                          I'm looking for a place to rent
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-3 rounded-md border p-3">
+                        <RadioGroupItem value="landlord" id="role-landlord-phone" />
+                        <Label htmlFor="role-landlord-phone" className="font-medium cursor-pointer">
+                          I want to list a property
+                        </Label>
+                      </div>
+                    </RadioGroup>
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="phone">Phone Number</Label>

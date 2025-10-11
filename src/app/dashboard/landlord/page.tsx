@@ -46,8 +46,8 @@ interface Tenant {
 
 interface DashboardStats {
   totalListings: number;
-  vacantListings: number;
-  occupiedListings: number;
+  publishedListings: number;
+  rentedListings: number;
   totalTenants: number;
   monthlyRevenue: number;
   occupancyRate: number;
@@ -63,8 +63,8 @@ export default function LandlordDashboard() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalListings: 0,
-    vacantListings: 0,
-    occupiedListings: 0,
+    publishedListings: 0,
+    rentedListings: 0,
     totalTenants: 0,
     monthlyRevenue: 0,
     occupancyRate: 0,
@@ -126,15 +126,17 @@ export default function LandlordDashboard() {
       setListings(userListings);
 
       // Calculate stats
-      const vacant = userListings.filter(l => l.status === 'Vacant').length;
-      const occupied = userListings.filter(l => l.status === 'Occupied').length;
-      const totalRevenue = userListings.reduce((sum, l) => sum + l.price, 0);
-      const occupancyRate = userListings.length > 0 ? (occupied / userListings.length) * 100 : 0;
+      const published = userListings.filter(l => l.status === 'published').length;
+      const rented = userListings.filter(l => l.status === 'rented').length;
+      const activeForRevenue = userListings.filter(l => l.status === 'published' || l.status === 'rented');
+      const totalRevenue = activeForRevenue.reduce((sum, l) => sum + l.price, 0);
+      const denominator = published + rented;
+      const occupancyRate = denominator > 0 ? (rented / denominator) * 100 : 0;
 
       setStats({
         totalListings: userListings.length,
-        vacantListings: vacant,
-        occupiedListings: occupied,
+        publishedListings: published,
+        rentedListings: rented,
         totalTenants: mockTenants.length, // Replace with real tenant count
         monthlyRevenue: totalRevenue,
         occupancyRate,
@@ -150,10 +152,26 @@ export default function LandlordDashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Vacant': return 'bg-green-100 text-green-800 border-green-200';
-      case 'Occupied': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'Available Soon': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'published': return 'bg-green-100 text-green-800 border-green-200';
+      case 'rented': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'pending_approval': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const getStatusLabel = (status: Listing['status']) => {
+    switch (status) {
+      case 'pending_approval':
+        return 'Pending Approval';
+      case 'published':
+        return 'Published';
+      case 'rented':
+        return 'Rented';
+      case 'rejected':
+        return 'Rejected';
+      default:
+        return status;
     }
   };
 
@@ -211,7 +229,7 @@ export default function LandlordDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalListings}</div>
               <p className="text-xs text-muted-foreground">
-                {stats.vacantListings} vacant, {stats.occupiedListings} occupied
+                {stats.publishedListings} published, {stats.rentedListings} rented
               </p>
             </CardContent>
           </Card>
@@ -347,7 +365,7 @@ export default function LandlordDashboard() {
                     <Badge 
                       className={cn("absolute top-2 right-2", getStatusColor(listing.status))}
                     >
-                      {listing.status}
+                      {getStatusLabel(listing.status)}
                     </Badge>
                   </div>
                   <CardHeader>

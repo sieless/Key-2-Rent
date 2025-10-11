@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { useAuth, useUser } from '@/firebase';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -21,13 +22,15 @@ import { isAdmin } from '@/lib/admin';
 import { Logo } from './logo';
 
 type HeaderProps = {
-  onPostClick: () => void;
+  onPostClick?: () => void;
 };
 
 export function Header({ onPostClick }: HeaderProps) {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
+  const { profile, loading: profileLoading } = useUserProfile();
+  const canPostListing = !!profile && profile.role === 'landlord' && profile.landlordApplicationStatus === 'approved';
 
   const handleSignOut = async () => {
     if (!auth) return;
@@ -50,15 +53,21 @@ export function Header({ onPostClick }: HeaderProps) {
           <Logo iconClassName="text-primary" />
         </Link>
         <div className="flex items-center gap-2 sm:gap-4">
-          {user && (
+          {profileLoading ? (
+            <Skeleton className="h-10 w-32 hidden sm:block" />
+          ) : user && canPostListing ? (
             <Button
-              onClick={onPostClick}
+              onClick={() => onPostClick?.()}
               className="font-semibold shadow-md hover:bg-primary/90 transition-all duration-300 transform hover:-translate-y-0.5 hidden sm:flex"
             >
               <PlusCircle className="mr-2 h-5 w-5" />
               Post a Listing
             </Button>
-          )}
+          ) : user ? (
+            <Button asChild variant="outline" className="hidden sm:flex">
+              <Link href="/become-landlord">Become a Landlord</Link>
+            </Button>
+          ) : null}
           {!user && !isUserLoading && (
              <Button asChild className="hidden sm:flex">
                 <Link href="/login">
@@ -156,10 +165,19 @@ export function Header({ onPostClick }: HeaderProps) {
               <DropdownMenuContent align="end">
                  {user && (
                     <>
-                      <DropdownMenuItem onClick={onPostClick}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        <span>Post Listing</span>
-                      </DropdownMenuItem>
+                      {canPostListing ? (
+                        <DropdownMenuItem onClick={() => onPostClick?.()}>
+                          <PlusCircle className="mr-2 h-4 w-4" />
+                          <span>Post Listing</span>
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem asChild>
+                          <Link href="/become-landlord">
+                            <Shield className="mr-2 h-4 w-4" />
+                            <span>Become a Landlord</span>
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem asChild>
                         <Link href="/favorites">
                           <Heart className="mr-2 h-4 w-4" />

@@ -16,7 +16,6 @@ import { useFirestore, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { analyzeListingImage } from '@/app/actions';
 import { ImageUpload } from '@/components/image-upload';
-import { VacancyPaymentModal } from '@/components/vacancy-payment-modal';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -49,7 +48,6 @@ import { houseTypes, locations, allFeatureOptions } from '@/lib/constants';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Sparkles, Loader2, Wand2 } from 'lucide-react';
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Textarea } from './ui/textarea';
 
@@ -67,11 +65,14 @@ const listingSchema = z.object({
     .array(z.string())
     .min(1, 'At least one image is required.'),
   features: z.array(z.string()).optional(),
-  status: z.enum(['Vacant', 'Occupied', 'Available Soon'], {
-    required_error: 'You need to select a status.',
-  }),
-  totalUnits: z.coerce.number().min(1).optional().or(z.literal('')),
-  availableUnits: z.coerce.number().min(0).optional().or(z.literal('')),
+  totalUnits: z.coerce.number().min(1, 'Total units must be at least 1.'),
+  availableUnits: z.coerce.number().min(0, 'Available units cannot be negative.'),
+}).refine((data) => {
+  if (Number.isNaN(data.totalUnits) || Number.isNaN(data.availableUnits)) return true;
+  return data.availableUnits <= data.totalUnits;
+}, {
+  message: 'Available units cannot exceed total units.',
+  path: ['availableUnits'],
 });
 
 type AddListingModalProps = {
@@ -91,8 +92,6 @@ export function AddListingModal({ isOpen, onClose }: AddListingModalProps) {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [analyzedImageIndex, setAnalyzedImageIndex] = useState<number | null>(null);
   const [featureOptions, setFeatureOptions] = useState(allFeatureOptions.residential);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [pendingListingData, setPendingListingData] = useState<ListingData | null>(null);
 
 
   const { toast } = useToast();
@@ -112,7 +111,6 @@ export function AddListingModal({ isOpen, onClose }: AddListingModalProps) {
       deposit: '',
       depositMonths: '',
       businessTerms: '',
-      status: 'Vacant',
       totalUnits: 1,
       availableUnits: 1,
     },
@@ -162,13 +160,6 @@ export function AddListingModal({ isOpen, onClose }: AddListingModalProps) {
       return;
     }
 
-    // Check if status is Vacant - require payment
-    if (data.status === 'Vacant') {
-      setPendingListingData(data);
-      setShowPaymentModal(true);
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
@@ -176,6 +167,7 @@ export function AddListingModal({ isOpen, onClose }: AddListingModalProps) {
         ...data,
         userId: user.uid,
         createdAt: serverTimestamp(),
+        status: 'pending_approval',
       };
 
       if (!listingPayload.name) delete listingPayload.name;
@@ -201,60 +193,6 @@ export function AddListingModal({ isOpen, onClose }: AddListingModalProps) {
       });
 
       form.reset();
-      onClose();
-    } catch (error) {
-      console.error('Error adding document: ', error);
-      toast({
-        variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
-        description: 'Failed to create listing. Please try again.',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const createListingAfterPayment = async () => {
-    if (!pendingListingData || !user) {
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const listingPayload: any = {
-        ...pendingListingData,
-        userId: user.uid,
-        createdAt: serverTimestamp(),
-        // Set as Occupied with pending payment flag instead of Vacant
-        status: 'Occupied',
-        pendingVacancyPayment: true,
-      };
-
-      if (!listingPayload.name) delete listingPayload.name;
-      if (!listingPayload.businessTerms) delete listingPayload.businessTerms;
-
-      const fieldsToProcessAsNumbers = ['price', 'deposit', 'depositMonths', 'totalUnits', 'availableUnits'];
-      fieldsToProcessAsNumbers.forEach(field => {
-        if (listingPayload[field] === '' || listingPayload[field] === undefined || isNaN(listingPayload[field])) {
-            delete listingPayload[field];
-        } else {
-            listingPayload[field] = Number(listingPayload[field]);
-        }
-      });
-
-      const docRef = await addDoc(collection(db, 'listings'), listingPayload);
-
-      const userRef = doc(db, 'users', user.uid);
-      updateDocumentNonBlocking(userRef, { listings: arrayUnion(docRef.id) });
-
-      toast({
-        title: 'Listing Created!',
-        description: 'Your listing is pending payment verification. It will be visible as vacant once payment is confirmed.',
-      });
-
-      form.reset();
-      setPendingListingData(null);
       onClose();
     } catch (error) {
       console.error('Error adding document: ', error);
@@ -479,49 +417,6 @@ export function AddListingModal({ isOpen, onClose }: AddListingModalProps) {
                     />
                  )}
                 
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem className="space-y-3">
-                      <FormLabel>Property Status</FormLabel>
-                      <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          className="flex flex-wrap space-x-4"
-                        >
-                          <FormItem className="flex items-center space-x-2 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="Vacant" />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              Vacant
-                            </FormLabel>
-                          </FormItem>
-                          <FormItem className="flex items-center space-x-2 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="Occupied" />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              Occupied
-                            </FormLabel>
-                          </FormItem>
-                           <FormItem className="flex items-center space-x-2 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="Available Soon" />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              Available Soon
-                            </FormLabel>
-                          </FormItem>
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
@@ -719,13 +614,6 @@ export function AddListingModal({ isOpen, onClose }: AddListingModalProps) {
         </DialogContent>
       </Dialog>
       
-      <VacancyPaymentModal
-        open={showPaymentModal}
-        onOpenChange={setShowPaymentModal}
-        propertyType={pendingListingData?.type || ''}
-        onPaymentConfirmed={createListingAfterPayment}
-        isLoading={isSubmitting}
-      />
     </>
   );
 }

@@ -179,6 +179,8 @@ export function UsersManagementTable() {
                 <TableRow>
                   <TableHead>Email</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Verification</TableHead>
                   <TableHead>Listings</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead>Status</TableHead>
@@ -188,7 +190,7 @@ export function UsersManagementTable() {
               <TableBody>
                 {filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
                       No users found
                     </TableCell>
                   </TableRow>
@@ -197,6 +199,14 @@ export function UsersManagementTable() {
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.email}</TableCell>
                       <TableCell>{user.name}</TableCell>
+                      <TableCell>{user.role === 'landlord' ? 'Landlord' : 'Renter'}</TableCell>
+                      <TableCell>
+                        {user.landlordApplicationStatus ? (
+                          <Badge variant="outline">{user.landlordApplicationStatus}</Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">n/a</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{user.listings?.length || 0}</Badge>
                       </TableCell>

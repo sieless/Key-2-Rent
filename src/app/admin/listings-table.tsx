@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
+import { collection, getDocs, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase';
 import { type Listing } from '@/types';
 import {
   Table,
@@ -49,6 +49,24 @@ export function ListingsManagementTable() {
   const [actionLoading, setActionLoading] = useState(false);
   const db = useFirestore();
   const { toast } = useToast();
+  const { user } = useUser();
+
+  const getStatusLabel = (status: Listing['status']) => {
+    switch (status) {
+      case 'pending_approval':
+        return 'Pending Approval';
+      case 'published':
+        return 'Published';
+      case 'rented':
+        return 'Rented';
+      case 'rejected':
+        return 'Rejected';
+      default:
+        return status;
+    }
+  };
+
+  const statusOptions: Listing['status'][] = ['pending_approval', 'published', 'rented', 'rejected'];
 
   useEffect(() => {
     fetchListings();
@@ -127,7 +145,7 @@ export function ListingsManagementTable() {
     }
   }
 
-  async function handleUpdateStatus(listingId: string, newStatus: 'Vacant' | 'Occupied' | 'Available Soon') {
+  async function handleUpdateStatus(listingId: string, newStatus: Listing['status']) {
     setActionLoading(true);
     try {
       await updateDoc(doc(db, 'listings', listingId), {
@@ -153,12 +171,81 @@ export function ListingsManagementTable() {
     }
   }
 
+  async function handleApproveListing(listing: Listing) {
+    setActionLoading(true);
+    try {
+      const totalUnits = listing.totalUnits ?? 1;
+      const availableUnits = listing.availableUnits ?? 0;
+      const approvedUnits = availableUnits > 0 ? availableUnits : totalUnits;
+
+      await updateDoc(doc(db, 'listings', listing.id), {
+        status: 'published',
+        availableUnits: approvedUnits,
+        approvedAt: serverTimestamp(),
+        approvedBy: user?.email ?? 'system',
+        rejectionReason: null,
+      });
+
+      toast({
+        title: 'Listing published',
+        description: `${listing.name || listing.type} is now live on the marketplace.`,
+      });
+
+      fetchListings();
+    } catch (error) {
+      console.error('Error approving listing:', error);
+      toast({
+        title: 'Approval failed',
+        description: 'Could not publish listing. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleRejectListing(listing: Listing) {
+    const reason = window.prompt(
+      'Provide a rejection reason for this listing:',
+      listing.rejectionReason || ''
+    );
+
+    if (reason === null) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      await updateDoc(doc(db, 'listings', listing.id), {
+        status: 'rejected',
+        rejectionReason: reason.trim() || 'No reason provided',
+      });
+
+      toast({
+        title: 'Listing rejected',
+        description: `${listing.name || listing.type} has been marked as rejected.`,
+      });
+
+      fetchListings();
+    } catch (error) {
+      console.error('Error rejecting listing:', error);
+      toast({
+        title: 'Rejection failed',
+        description: 'Could not reject listing. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   function formatDate(timestamp: any) {
     if (!timestamp) return 'N/A';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   }
 
+  const pendingListings = listings.filter((listing) => listing.status === 'pending_approval');
   const uniqueTypes = Array.from(new Set(listings.map((l) => l.type)));
 
   if (loading) {
@@ -177,6 +264,47 @@ export function ListingsManagementTable() {
 
   return (
     <>
+      {pendingListings.length > 0 && (
+        <Card className="mb-6 border-amber-200 bg-amber-50/40">
+          <CardHeader>
+            <CardTitle className="text-amber-800">Pending Listing Approvals</CardTitle>
+            <CardDescription>Review and approve new listings submitted by landlords</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {pendingListings.map((listing) => (
+              <div
+                key={listing.id}
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border border-amber-200 bg-white p-4"
+              >
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-amber-900">
+                    {listing.name || `${listing.type} in ${listing.location}`}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Submitted on {formatDate(listing.createdAt)} · Ksh {listing.price.toLocaleString()} / month
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleRejectListing(listing)}
+                    disabled={actionLoading}
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    onClick={() => handleApproveListing(listing)}
+                    disabled={actionLoading}
+                  >
+                    Publish
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Listings Management</CardTitle>
@@ -210,9 +338,10 @@ export function ListingsManagementTable() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="Vacant">Vacant</SelectItem>
-                <SelectItem value="Occupied">Occupied</SelectItem>
-                <SelectItem value="Available Soon">Available Soon</SelectItem>
+                <SelectItem value="pending_approval">Pending Approval</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+                <SelectItem value="rented">Rented</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -253,7 +382,7 @@ export function ListingsManagementTable() {
                         <Select
                           value={listing.status}
                           onValueChange={(value) =>
-                            handleUpdateStatus(listing.id, value as any)
+                            handleUpdateStatus(listing.id, value as Listing['status'])
                           }
                           disabled={actionLoading}
                         >
@@ -261,9 +390,11 @@ export function ListingsManagementTable() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Vacant">Vacant</SelectItem>
-                            <SelectItem value="Occupied">Occupied</SelectItem>
-                            <SelectItem value="Available Soon">Available Soon</SelectItem>
+                            {statusOptions.map(option => (
+                              <SelectItem key={option} value={option}>
+                                {getStatusLabel(option)}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </TableCell>

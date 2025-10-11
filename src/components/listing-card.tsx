@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, CalendarClock, MapPin, Lock, Star, Zap, Heart, Building2, MessageCircle } from "lucide-react";
+import { Phone, Hourglass, MapPin, Lock, Star, Zap, Heart, Building2, MessageCircle, CheckCircle2, XCircle } from "lucide-react";
 import { type Listing } from "@/types";
 import { cn, getPropertyIcon, getStatusClass } from "@/lib/utils";
 import { DefaultPlaceholder } from "./default-placeholder";
@@ -37,6 +37,24 @@ export function ListingCard({ listing }: ListingCardProps) {
   const paymentStatus = usePaymentStatus();
   const { startConversation, loading: startingConversation } = useStartConversation();
 
+  const statusLabelMap: Record<Listing['status'], string> = {
+    pending_approval: 'Coming Soon',
+    published: 'Available',
+    rented: 'Rented Out',
+    rejected: 'Unavailable',
+  };
+
+  const statusIconMap: Record<Listing['status'], ReactNode> = {
+    pending_approval: <Hourglass className="mr-1.5 h-4 w-4" />,
+    published: <CheckCircle2 className="mr-1.5 h-4 w-4" />,
+    rented: <Building2 className="mr-1.5 h-4 w-4" />,
+    rejected: <XCircle className="mr-1.5 h-4 w-4" />,
+  };
+
+  const statusLabel = statusLabelMap[listing.status] ?? 'Unavailable';
+  const statusIcon = statusIconMap[listing.status];
+  const isContactable = listing.status === 'published';
+
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigation to listing detail
     e.stopPropagation();
@@ -50,6 +68,15 @@ export function ListingCard({ listing }: ListingCardProps) {
   const handleContactClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (!isContactable) {
+      toast({
+        title: 'Listing unavailable',
+        description: 'This property is not currently accepting inquiries.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     // Check if user is logged in
     if (!user) {
@@ -87,6 +114,63 @@ export function ListingCard({ listing }: ListingCardProps) {
     window.location.reload();
   };
 
+  const renderContactButton = () => {
+    if (!isContactable) {
+      return (
+        <Button disabled className="flex-1" variant="outline">
+          <Lock className="mr-2 h-4 w-4" />
+          {statusLabel}
+        </Button>
+      );
+    }
+
+    if (contactPaymentEnabled) {
+      if (paymentStatus.loading) {
+        return (
+          <Button disabled className="flex-1">
+            <Phone className="mr-2 h-4 w-4 animate-pulse" />
+            Loading...
+          </Button>
+        );
+      }
+
+      if (paymentStatus.canViewContacts && !paymentStatus.needsRenewal) {
+        return (
+          <Button
+            onClick={handleContactClick}
+            variant="secondary"
+            className="flex-1 text-lg font-semibold text-green-600 hover:text-green-700"
+          >
+            <Phone className="mr-2 h-4 w-4" />
+            {user ? listing.contact : 'Sign in to view'}
+          </Button>
+        );
+      }
+
+      return (
+        <Button
+          onClick={handleContactClick}
+          className="flex-1"
+          variant="default"
+        >
+          <Lock className="mr-2 h-4 w-4" />
+          {user ? 'Unlock Contact - KES 100' : 'Sign in to view'}
+        </Button>
+      );
+    }
+
+    return (
+      <Button
+        onClick={handleContactClick}
+        variant="secondary"
+        className="flex-1 text-lg font-semibold text-green-600 hover:text-green-700"
+      >
+        <Phone className="mr-2 h-4 w-4" />
+        {user ? listing.contact : 'Sign in to view contact'}
+      </Button>
+    );
+  };
+
   return (
     <Card className="overflow-hidden group transform hover:-translate-y-1 transition-all duration-300 hover:shadow-xl flex flex-col h-full">
       <Link href={`/listings/${listing.id}`} className="flex flex-col h-full">
@@ -112,8 +196,8 @@ export function ListingCard({ listing }: ListingCardProps) {
                 getStatusClass(listing.status)
               )}
             >
-              {listing.status === 'Available Soon' && <CalendarClock className="mr-1.5 h-4 w-4" />}
-              {listing.status}
+              {statusIcon}
+              {statusLabel}
             </Badge>
 
             {/* Multi-unit Badge - shows availability for multi-unit properties */}
@@ -202,47 +286,7 @@ export function ListingCard({ listing }: ListingCardProps) {
         <div className="w-full space-y-2">
           {/* Contact Button */}
           <div className="flex gap-2">
-            {/* FEATURE FLAG: Show payment gate if admin enabled contact payments */}
-            {contactPaymentEnabled ? (
-              <>
-                {paymentStatus.loading ? (
-                  <Button disabled className="flex-1">
-                    <Phone className="mr-2 h-4 w-4 animate-pulse" />
-                    Loading...
-                  </Button>
-                ) : paymentStatus.canViewContacts && !paymentStatus.needsRenewal ? (
-                  // User has active subscription
-                  <Button
-                    onClick={handleContactClick}
-                    variant="secondary"
-                    className="flex-1 text-lg font-semibold text-green-600 hover:text-green-700"
-                  >
-                    <Phone className="mr-2 h-4 w-4" />
-                    {user ? listing.contact : 'Sign in to view'}
-                  </Button>
-                ) : (
-                  // User needs to pay
-                  <Button
-                    onClick={handleContactClick}
-                    className="flex-1"
-                    variant="default"
-                  >
-                    <Lock className="mr-2 h-4 w-4" />
-                    {user ? 'Unlock Contact - KES 100' : 'Sign in to view'}
-                  </Button>
-                )}
-              </>
-            ) : (
-              // FREE MODE: Only show contact if logged in
-              <Button
-                onClick={handleContactClick}
-                variant="secondary"
-                className="flex-1 text-lg font-semibold text-green-600 hover:text-green-700"
-              >
-                <Phone className="mr-2 h-4 w-4" />
-                {user ? listing.contact : 'Sign in to view contact'}
-              </Button>
-            )}
+            {renderContactButton()}
 
             {/* Message Button */}
             {user && user.uid !== listing.userId && (
@@ -254,7 +298,7 @@ export function ListingCard({ listing }: ListingCardProps) {
                 }}
                 variant="outline"
                 size="icon"
-                disabled={startingConversation}
+                disabled={startingConversation || !isContactable}
                 title="Message Landlord"
               >
                 <MessageCircle className="h-4 w-4" />

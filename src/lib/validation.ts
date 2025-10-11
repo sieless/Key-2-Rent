@@ -87,7 +87,9 @@ export const listingValidationSchema = z.object({
       'Only JPEG, PNG, and WebP images are allowed'
     ),
   features: z.array(z.string()).optional(),
-  status: z.enum(['Vacant', 'Occupied', 'Available Soon'], {
-    required_error: 'You need to select a status.',
-  }),
+  totalUnits: z.coerce.number().min(1, 'Total units must be at least 1'),
+  availableUnits: z.coerce.number().min(0, 'Available units cannot be negative'),
+}).refine((data) => data.availableUnits <= data.totalUnits, {
+  message: 'Available units cannot exceed total units.',
+  path: ['availableUnits'],
 });

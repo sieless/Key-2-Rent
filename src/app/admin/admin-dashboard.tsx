@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UsersManagementTable } from './users-table';
 import { ListingsManagementTable } from './listings-table';
 import { PaymentSettingsPanel } from './payment-settings';
+import { LandlordApprovalsPanel } from './landlord-approvals';
 import { Users, Home, TrendingUp, MapPin, Building2, Activity, DollarSign } from 'lucide-react';
 import { type AdminStats } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,6 +17,15 @@ export function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const db = useFirestore();
+
+  const statusLabelMap: Record<string, string> = {
+    pending_approval: 'Pending Approval',
+    published: 'Published',
+    rented: 'Rented',
+    rejected: 'Rejected',
+  };
+
+  const getStatusLabel = (status: string) => statusLabelMap[status] ?? status;
 
   useEffect(() => {
     async function fetchStats() {
@@ -129,12 +139,12 @@ export function AdminDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Vacant Properties</CardTitle>
+            <CardTitle className="text-sm font-medium">Published Listings</CardTitle>
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.listingsByStatus['Vacant'] || 0}</div>
-            <p className="text-xs text-muted-foreground">Available for rent</p>
+            <div className="text-2xl font-bold">{stats?.listingsByStatus['published'] || 0}</div>
+            <p className="text-xs text-muted-foreground">Live and visible to renters</p>
           </CardContent>
         </Card>
 
@@ -157,6 +167,10 @@ export function AdminDashboard() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="mb-8">
+        <LandlordApprovalsPanel />
       </div>
 
       {/* Breakdown Cards */}
@@ -191,7 +205,7 @@ export function AdminDashboard() {
               {stats?.listingsByStatus &&
                 Object.entries(stats.listingsByStatus).map(([status, count]) => (
                   <div key={status} className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{status}</span>
+                    <span className="text-sm font-medium">{getStatusLabel(status)}</span>
                     <span className="text-sm text-muted-foreground">{count}</span>
                   </div>
                 ))}

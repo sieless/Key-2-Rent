@@ -21,7 +21,11 @@ type FilterPanelProps = {
   onFilterChange: (name: string, value: string | number) => void;
 };
 
-const statusOptions = ['All', 'Vacant', 'Available Soon', 'Occupied'];
+const statusOptions = [
+  { value: 'All', label: 'All' },
+  { value: 'published', label: 'Available' },
+  { value: 'rented', label: 'Rented Out' },
+];
 
 export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
   return (
@@ -83,8 +87,8 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
             </SelectTrigger>
             <SelectContent>
               {statusOptions.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {status}
+                <SelectItem key={status.value} value={status.value}>
+                  {status.label}
                 </SelectItem>
               ))}
             </SelectContent>

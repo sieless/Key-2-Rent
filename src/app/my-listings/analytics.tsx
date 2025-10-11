@@ -23,7 +23,7 @@ type AnalyticsProps = {
  *
  * Displays statistics and insights about landlord's listings:
  * - Total listings count
- * - Listings by status (vacant/occupied/available soon)
+ * - Listings by status (published/rented/pending approval)
  * - Average price
  * - Most common location
  * - Featured/boosted count
@@ -38,16 +38,16 @@ export function LandlordAnalytics({ listings }: AnalyticsProps) {
   // Calculate statistics
   const totalListings = listings.length;
 
-  const vacantCount = listings.filter(l => l.status === 'Vacant').length;
-  const occupiedCount = listings.filter(l => l.status === 'Occupied').length;
-  const availableSoonCount = listings.filter(l => l.status === 'Available Soon').length;
+  const publishedCount = listings.filter(l => l.status === 'published').length;
+  const rentedCount = listings.filter(l => l.status === 'rented').length;
+  const pendingApprovalCount = listings.filter(l => l.status === 'pending_approval').length;
 
   const averagePrice = totalListings > 0
     ? Math.round(listings.reduce((sum, l) => sum + l.price, 0) / totalListings)
     : 0;
 
   const totalMonthlyRevenuePotential = listings
-    .filter(l => l.status === 'Occupied')
+    .filter(l => l.status === 'rented')
     .reduce((sum, l) => sum + l.price, 0);
 
   const featuredCount = listings.filter(l => l.isFeatured).length;
@@ -93,10 +93,10 @@ export function LandlordAnalytics({ listings }: AnalyticsProps) {
             <div className="text-3xl font-bold">{totalListings}</div>
             <div className="flex gap-2 mt-2">
               <Badge variant="secondary" className="text-xs">
-                {vacantCount} Vacant
+                {publishedCount} Published
               </Badge>
               <Badge variant="outline" className="text-xs">
-                {occupiedCount} Occupied
+                {rentedCount} Rented
               </Badge>
             </div>
           </CardContent>
@@ -124,7 +124,7 @@ export function LandlordAnalytics({ listings }: AnalyticsProps) {
             <div className="text-3xl font-bold">
               KES {totalMonthlyRevenuePotential.toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">from occupied units</p>
+            <p className="text-xs text-muted-foreground mt-1">from rented units</p>
           </CardContent>
         </Card>
 
@@ -153,25 +153,25 @@ export function LandlordAnalytics({ listings }: AnalyticsProps) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <span className="font-medium">Vacant</span>
+                <span className="font-medium">Published</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-2xl font-bold">{vacantCount}</span>
+                <span className="text-2xl font-bold">{publishedCount}</span>
                 <span className="text-sm text-muted-foreground">
-                  ({totalListings > 0 ? Math.round((vacantCount / totalListings) * 100) : 0}%)
+                  ({totalListings > 0 ? Math.round((publishedCount / totalListings) * 100) : 0}%)
                 </span>
               </div>
             </div>
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                <span className="font-medium">Occupied</span>
+                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                <span className="font-medium">Rented</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-2xl font-bold">{occupiedCount}</span>
+                <span className="text-2xl font-bold">{rentedCount}</span>
                 <span className="text-sm text-muted-foreground">
-                  ({totalListings > 0 ? Math.round((occupiedCount / totalListings) * 100) : 0}%)
+                  ({totalListings > 0 ? Math.round((rentedCount / totalListings) * 100) : 0}%)
                 </span>
               </div>
             </div>
@@ -179,12 +179,12 @@ export function LandlordAnalytics({ listings }: AnalyticsProps) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-                <span className="font-medium">Available Soon</span>
+                <span className="font-medium">Pending Approval</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-2xl font-bold">{availableSoonCount}</span>
+                <span className="text-2xl font-bold">{pendingApprovalCount}</span>
                 <span className="text-sm text-muted-foreground">
-                  ({totalListings > 0 ? Math.round((availableSoonCount / totalListings) * 100) : 0}%)
+                  ({totalListings > 0 ? Math.round((pendingApprovalCount / totalListings) * 100) : 0}%)
                 </span>
               </div>
             </div>
