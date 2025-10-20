@@ -5,10 +5,22 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  updateDoc,
+  addDoc,
+  serverTimestamp,
+  Timestamp,
+  limit,
+} from 'firebase/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import type { TransactionType } from '@/types';
-import { rateLimiter, RATE_LIMITS } from '@/lib/security/rate-limiter';
+import { rateLimiter } from '@/lib/security/rate-limiter';
 import { getClientIP } from '@/lib/security/api-security';
 import { logPaymentAttempt } from '@/lib/security/audit-logger';
 import { logPaymentError } from '@/lib/error-logger';
@@ -17,8 +29,37 @@ import { logPaymentError } from '@/lib/error-logger';
 const app = initializeApp(firebaseConfig, 'mpesa-callback');
 const db = getFirestore(app);
 
+export const maxDuration = 60;
+
+type MpesaMetadataItem = {
+  Name: string;
+  Value?: string | number;
+};
+
+type MpesaCallbackBody = {
+  stkCallback?: {
+    CheckoutRequestID: string;
+    ResultCode: number;
+    ResultDesc: string;
+    CallbackMetadata?: {
+      Item: MpesaMetadataItem[];
+    };
+  };
+};
+
+type MpesaCallbackPayload = {
+  Body?: MpesaCallbackBody;
+};
+
+interface TransactionRecord {
+  userId: string;
+  type: TransactionType;
+  amount: number;
+  listingId?: string;
+}
+
 // Log callback for debugging
-async function logCallback(data: any) {
+async function logCallback(data: unknown) {
   try {
     await addDoc(collection(db, 'mpesa_callbacks'), {
       data,
@@ -115,7 +156,7 @@ export async function POST(request: NextRequest) {
   try {
     // Apply rate limiting (50 requests per minute for callback endpoint)
     const clientIP = getClientIP(request);
-    const rateLimitKey = `mpesa-callback:${clientIP}`;
+    const rateLimitKey = `mpesa-callback:${clientIP ?? 'unknown'}`;
     const allowed = rateLimiter.check(rateLimitKey, 50, 60 * 1000);
 
     if (!allowed) {
@@ -126,13 +167,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-
-    // Log all callbacks for debugging
-    await logCallback(body);
+    const body = (await request.json()) as MpesaCallbackPayload;
+    const backgroundTasks: Promise<unknown>[] = [logCallback(body)];
 
     // Extract M-Pesa callback data
-    const { Body } = body;
+    const { Body } = body || {};
     if (!Body || !Body.stkCallback) {
       console.log('Invalid callback format');
       return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
@@ -145,7 +184,7 @@ export async function POST(request: NextRequest) {
 
     // Find transaction by CheckoutRequestID
     const transactionsRef = collection(db, 'transactions');
-    const q = query(transactionsRef, where('checkoutRequestID', '==', CheckoutRequestID));
+    const q = query(transactionsRef, where('checkoutRequestID', '==', CheckoutRequestID), limit(1));
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
@@ -154,67 +193,83 @@ export async function POST(request: NextRequest) {
     }
 
     const transactionDoc = querySnapshot.docs[0];
-    const transaction = transactionDoc.data();
+    const transaction = transactionDoc.data() as TransactionRecord;
+    const transactionRef = doc(db, 'transactions', transactionDoc.id);
 
     // ResultCode 0 = Success, anything else = Failed
     const isSuccess = ResultCode === 0;
 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       status: isSuccess ? 'SUCCESS' : 'FAILED',
       statusMessage: ResultDesc,
       updatedAt: serverTimestamp(),
       completedAt: serverTimestamp(),
     };
 
-    if (isSuccess && CallbackMetadata?.Item) {
+    const metadataItems = CallbackMetadata?.Item as MpesaMetadataItem[] | undefined;
+
+    if (isSuccess && metadataItems) {
       // Extract M-Pesa receipt number
-      const metadataArray = CallbackMetadata.Item;
-      const receiptItem = metadataArray.find((item: any) => item.Name === 'MpesaReceiptNumber');
+      const receiptItem = metadataItems.find((item) => item.Name === 'MpesaReceiptNumber');
 
       if (receiptItem) {
         updateData.mpesaReceiptNumber = receiptItem.Value;
       }
 
       // Update user permissions on successful payment
-      await updateUserPermissions(
-        transaction.userId,
-        transaction.type as TransactionType,
-        transaction.amount,
-        transaction.listingId
-      );
+      const coreUpdates: Promise<unknown>[] = [
+        updateUserPermissions(
+          transaction.userId,
+          transaction.type as TransactionType,
+          transaction.amount,
+          transaction.listingId
+        ),
+        (async () => {
+          const platformSettingsRef = doc(db, 'platformSettings', 'config');
+          await updateDoc(platformSettingsRef, {
+            totalRevenue: transaction.amount || 0,
+            lastUpdated: serverTimestamp(),
+          });
+        })(),
+      ];
 
-      // Update platform revenue statistics
-      const platformSettingsRef = doc(db, 'platformSettings', 'config');
-      await updateDoc(platformSettingsRef, {
-        totalRevenue: (transaction.amount || 0),
-        lastUpdated: serverTimestamp(),
-      });
+      await Promise.all(coreUpdates);
 
-      // Log successful payment
-      await logPaymentAttempt(
-        transaction.userId,
-        transaction.amount,
-        true,
-        CheckoutRequestID
+      backgroundTasks.push(
+        logPaymentAttempt(
+          transaction.userId,
+          transaction.amount,
+          true,
+          CheckoutRequestID
+        )
       );
     } else {
-      // Log failed payment
-      await logPaymentAttempt(
-        transaction.userId,
-        transaction.amount,
-        false,
-        CheckoutRequestID
+      backgroundTasks.push(
+        logPaymentAttempt(
+          transaction.userId,
+          transaction.amount,
+          false,
+          CheckoutRequestID
+        )
       );
 
-      await logPaymentError(
-        new Error(`Payment failed: ${ResultDesc}`),
-        transaction.userId,
-        CheckoutRequestID
+      backgroundTasks.push(
+        logPaymentError(
+          new Error(`Payment failed: ${ResultDesc}`),
+          transaction.userId,
+          CheckoutRequestID
+        )
       );
     }
 
     // Update transaction status
-    await updateDoc(doc(db, 'transactions', transactionDoc.id), updateData);
+    await updateDoc(transactionRef, updateData);
+
+    if (backgroundTasks.length) {
+      void Promise.allSettled(backgroundTasks).catch((backgroundError) => {
+        console.error('Background task failure:', backgroundError);
+      });
+    }
 
     console.log(`Transaction ${transactionDoc.id} updated:`, updateData);
 
