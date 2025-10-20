@@ -130,6 +130,8 @@ export type LandlordApplicationStatus = 'pending' | 'approved' | 'rejected';
 
 export type AdminNotificationType = 'LISTING_APPROVAL' | 'PAYMENT_DECLARATION';
 
+export type AdminNotificationMetadata = Record<string, unknown>;
+
 export type AdminNotification = {
   id: string;
   type: AdminNotificationType;
@@ -139,7 +141,7 @@ export type AdminNotification = {
   status: 'pending' | 'completed';
   createdAt: Timestamp;
   completedAt?: Timestamp;
-  metadata?: Record<string, any>;
+  metadata?: AdminNotificationMetadata;
 }
 
 /**
@@ -213,7 +215,7 @@ export type Transaction = {
   // Metadata
   ipAddress?: string;                  // User's IP for security
   userAgent?: string;                  // Browser info for security
-  metadata?: Record<string, any>;      // Additional data
+  metadata?: Record<string, unknown>;      // Additional data
 }
 
 /**

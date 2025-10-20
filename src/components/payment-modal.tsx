@@ -48,8 +48,6 @@ export function PaymentModal({
   const { toast } = useToast();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isInitiating, setIsInitiating] = useState(false);
-  const [transactionId, setTransactionId] = useState<string | null>(null);
-  const [checkoutRequestID, setCheckoutRequestID] = useState<string | null>(null);
   const [status, setStatus] = useState<'IDLE' | 'SUCCESS' | 'FAILED' | 'PENDING'>('IDLE');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -109,33 +107,28 @@ export function PaymentModal({
         }),
       });
 
-      const data = await response.json();
-
       if (response.status === 503) {
         throw new Error('M-Pesa integration is temporarily unavailable. Please try again later.');
       }
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Payment initiation failed');
-      }
-
-      setTransactionId(data.transactionId);
-      setCheckoutRequestID(data.documentId);
       setStatus('PENDING');
       toast({
         title: 'Payment initiated',
         description: 'Please enter your M-Pesa PIN on your phone',
       });
 
-    } catch (error: any) {
+      setIsInitiating(false);
+
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to initiate payment. Please try again.';
       console.error('Payment error:', error);
       toast({
         title: 'Payment failed',
-        description: error.message || 'Failed to initiate payment. Please try again.',
+        description: message,
         variant: 'destructive',
       });
       setStatus('FAILED');
-      setStatusMessage(error.message);
+      setStatusMessage(message);
       setIsInitiating(false);
     }
   };
@@ -148,8 +141,6 @@ export function PaymentModal({
 
     // Reset state
     setPhoneNumber('');
-    setTransactionId(null);
-    setCheckoutRequestID(null);
     setIsInitiating(false);
     setStatus('IDLE');
     setStatusMessage(null);
@@ -163,8 +154,6 @@ export function PaymentModal({
   };
 
   const handleRetry = () => {
-    setTransactionId(null);
-    setCheckoutRequestID(null);
     setIsInitiating(false);
     setStatus('IDLE');
     setStatusMessage(null);
@@ -209,8 +198,8 @@ export function PaymentModal({
   };
 
   const statusInfo = getStatusMessage();
-  const showPaymentForm = !isInitiating && transactionId === null && status === 'IDLE';
-  const showStatus = transactionId && status !== 'IDLE';
+  const showPaymentForm = !isInitiating && status === 'IDLE';
+  const showStatus = status !== 'IDLE';
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>

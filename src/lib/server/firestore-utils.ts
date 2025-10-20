@@ -1,19 +1,12 @@
-import {
-  QueryConstraint,
-  query,
-  where,
-  orderBy,
-  limit as limitConstraint,
-  getDocs,
-} from 'firebase/firestore';
+import { CollectionReference, DocumentData, query, where, limit, getDocs } from 'firebase/firestore';
 
 export async function fetchSingleDocument<T>(params: {
-  collectionRef: any;
+  collectionRef: CollectionReference<DocumentData>;
   field: string;
   value: string;
 }): Promise<{ data: T | null; id: string | null }> {
   const { collectionRef, field, value } = params;
-  const q = query(collectionRef, where(field, '==', value), limitConstraint(1));
+  const q = query(collectionRef, where(field, '==', value), limit(1));
   const snapshot = await getDocs(q);
 
   if (snapshot.empty) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { Firestore, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { type PlatformSettings, type PaymentFeature } from '@/types';
 import { Timestamp } from 'firebase/firestore';
 
@@ -29,7 +29,7 @@ export function getDefaultSettings(): PlatformSettings {
  * Get current platform settings from Firestore
  * Returns default settings if document doesn't exist
  */
-export async function getPlatformSettings(db: any): Promise<PlatformSettings> {
+export async function getPlatformSettings(db: Firestore): Promise<PlatformSettings> {
   try {
     const settingsRef = doc(db, SETTINGS_DOC_PATH);
     const settingsSnap = await getDoc(settingsRef);
@@ -52,7 +52,7 @@ export async function getPlatformSettings(db: any): Promise<PlatformSettings> {
  * Initialize platform settings with defaults (if not exists)
  * Safe to call multiple times - won't overwrite existing settings
  */
-export async function initializePlatformSettings(db: any): Promise<void> {
+export async function initializePlatformSettings(db: Firestore): Promise<void> {
   try {
     const settingsRef = doc(db, SETTINGS_DOC_PATH);
     const settingsSnap = await getDoc(settingsRef);
@@ -72,7 +72,7 @@ export async function initializePlatformSettings(db: any): Promise<void> {
  * Client-side function - use API route in production for security
  */
 export async function updateFeatureToggle(
-  db: any,
+  db: Firestore,
   feature: PaymentFeature,
   enabled: boolean,
   adminEmail: string
@@ -97,7 +97,7 @@ export async function updateFeatureToggle(
  * Client-side function - use API route in production for security
  */
 export async function updateFeaturePrice(
-  db: any,
+  db: Firestore,
   feature: PaymentFeature,
   amount: number,
   adminEmail: string
