@@ -6,7 +6,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -287,13 +294,13 @@ export function PaymentModal({
             </>
           )}
 
-          {pollResult.status === 'SUCCESS' && (
+          {status === 'SUCCESS' && (
             <Button onClick={handleClose} className="w-full">
               Done
             </Button>
           )}
 
-          {pollResult.status === 'FAILED' && (
+          {status === 'FAILED' && (
             <div className="flex gap-2 w-full">
               <Button variant="outline" onClick={handleClose} className="flex-1">
                 Cancel
@@ -304,7 +311,7 @@ export function PaymentModal({
             </div>
           )}
 
-          {pollResult.isPolling && (
+          {status === 'PENDING' && (
             <Button variant="outline" onClick={handleClose} className="w-full" disabled>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Processing payment...

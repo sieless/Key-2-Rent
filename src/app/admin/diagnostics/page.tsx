@@ -246,7 +246,7 @@ export default function AdminDiagnosticsPage() {
           status: 'CRITICAL',
           message: `High failure rate: ${failureRate.toFixed(1)}%`,
           details: `${failed} failed, ${pending} pending out of ${total}`,
-          recommendation: 'Check M-Pesa integration and API credentials',
+          recommendation: 'Payment gateway temporarily disabled; verify integration before re-enabling',
         };
       } else if (failureRate > 10) {
         return {
