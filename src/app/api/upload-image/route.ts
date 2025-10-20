@@ -84,7 +84,12 @@ export async function POST(request: NextRequest) {
 
     // Upload to Cloudinary using upload_stream
     console.log('☁️ Starting Cloudinary upload...');
-    const uploadResult = await new Promise<any>((resolve, reject) => {
+    const uploadResult = await new Promise<{
+      secure_url: string;
+      public_id: string;
+      width?: number;
+      height?: number;
+    }>((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: 'key-2-rent/listings',
@@ -127,30 +132,31 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorObj = error as { message?: string; stack?: string; name?: string; cause?: unknown; http_code?: number; error?: unknown };
     console.error('❌ Image upload error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-      cause: error.cause,
-      http_code: error.http_code,
-      error_details: error.error
+      message: errorObj.message,
+      stack: errorObj.stack,
+      name: errorObj.name,
+      cause: errorObj.cause,
+      http_code: errorObj.http_code,
+      error_details: errorObj.error
     });
     
     // Determine specific error message
     let errorMessage = 'Failed to upload image. Please try again.';
-    if (error.message?.includes('configuration') || error.message?.includes('API key')) {
+    if (errorObj.message?.includes('configuration') || errorObj.message?.includes('API key')) {
       errorMessage = 'Server configuration error. Please contact support.';
-    } else if (error.http_code === 401) {
+    } else if (errorObj.http_code === 401) {
       errorMessage = 'Authentication failed. Please contact support.';
-    } else if (error.http_code === 400) {
+    } else if (errorObj.http_code === 400) {
       errorMessage = 'Invalid file format or corrupted file.';
     }
     
     return NextResponse.json(
       { 
         error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        details: process.env.NODE_ENV === 'development' ? errorObj.message : undefined
       },
       { status: 500 }
     );

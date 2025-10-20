@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { auth, db, storage, isFirebaseInitialized, waitForFirebase, getFirebaseStatus } from '@/lib/firebase-config';
+import { auth, db, storage, waitForFirebase, getFirebaseStatus } from '@/lib/firebase-config';
 import { User } from 'firebase/auth';
 
 interface FirebaseContextType {
@@ -10,9 +10,9 @@ interface FirebaseContextType {
   error: Error | null;
   isInitialized: boolean;
   services: {
-    auth: any;
-    db: any;
-    storage: any;
+    auth: typeof auth;
+    db: typeof db;
+    storage: typeof storage;
   } | null;
 }
 
@@ -42,7 +42,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [services, setServices] = useState<any>(null);
+  const [services, setServices] = useState<{ auth: typeof auth; db: typeof db; storage: typeof storage } | null>(null);
 
   useEffect(() => {
     const initializeFirebase = async () => {
