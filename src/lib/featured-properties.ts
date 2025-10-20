@@ -9,6 +9,8 @@ import {
   serverTimestamp,
   Timestamp,
   updateDoc,
+  type FieldValue,
+  type UpdateData,
   type DocumentData,
   type Firestore,
   type QueryDocumentSnapshot,
@@ -137,7 +139,7 @@ export async function updateFeaturedProperty(
   }
 
   const docRef = doc(db, FEATURED_PROPERTIES_COLLECTION, featuredId);
-  const updates: Record<string, unknown> = {
+  const updates: Record<string, FieldValue | string | number | boolean | Timestamp | null | FeaturedDisplayMode | undefined> = {
     updatedAt: serverTimestamp(),
     featuredBy: input.featuredBy,
     agreementVerified: true,
@@ -162,7 +164,8 @@ export async function updateFeaturedProperty(
 
   updates.endDate = buildEndDate(input.durationDays);
   updates.status = 'active';
-  await updateDoc(docRef, updates);
+
+  await updateDoc(docRef, updates as UpdateData<FeaturedProperty>);
 }
 
 export async function removeFeaturedProperty(db: Firestore, featuredId: string) {
