@@ -6,33 +6,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initiateSTKPush } from '@/lib/mpesa';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { firebaseConfig } from '@/firebase/config';
 import type { Transaction, TransactionType } from '@/types';
+import { getServerFirestore } from '@/lib/server/firebase';
 
-// Initialize Firebase Admin for server-side operations
-const app = initializeApp(firebaseConfig, 'mpesa-stk-push');
-const db = getFirestore(app);
+const db = getServerFirestore('mpesa-stk-push');
 
 // Rate limiting: Track requests per user
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
 
 function checkRateLimit(userId: string): boolean {
   const now = Date.now();
-  const userLimit = requestCounts.get(userId);
+  const currentLimit = requestCounts.get(userId);
 
-  if (!userLimit || now > userLimit.resetTime) {
-    // Reset or initialize
-    requestCounts.set(userId, { count: 1, resetTime: now + 60 * 60 * 1000 }); // 1 hour
+  if (!currentLimit || now > currentLimit.resetTime) {
+    requestCounts.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
     return true;
   }
 
-  if (userLimit.count >= 5) {
-    return false; // Rate limit exceeded
+  if (currentLimit.count >= RATE_LIMIT_MAX) {
+    return false;
   }
 
-  userLimit.count++;
+  currentLimit.count += 1;
   return true;
 }
 

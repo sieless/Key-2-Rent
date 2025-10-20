@@ -4,30 +4,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp } from 'firebase/app';
-import {
-  getFirestore,
-  collection,
-  query,
-  where,
-  getDocs,
-  doc,
-  updateDoc,
-  addDoc,
-  serverTimestamp,
-  Timestamp,
-  limit,
-} from 'firebase/firestore';
-import { firebaseConfig } from '@/firebase/config';
+import { collection, doc, updateDoc, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import type { TransactionType } from '@/types';
 import { rateLimiter } from '@/lib/security/rate-limiter';
 import { getClientIP } from '@/lib/security/api-security';
 import { logPaymentAttempt } from '@/lib/security/audit-logger';
 import { logPaymentError } from '@/lib/error-logger';
+import { getServerFirestore } from '@/lib/server/firebase';
+import { fetchSingleDocument } from '@/lib/server/firestore-utils';
 
-// Initialize Firebase for server-side operations
-const app = initializeApp(firebaseConfig, 'mpesa-callback');
-const db = getFirestore(app);
+const db = getServerFirestore('mpesa-callback');
 
 export const maxDuration = 60;
 
@@ -184,17 +170,18 @@ export async function POST(request: NextRequest) {
 
     // Find transaction by CheckoutRequestID
     const transactionsRef = collection(db, 'transactions');
-    const q = query(transactionsRef, where('checkoutRequestID', '==', CheckoutRequestID), limit(1));
-    const querySnapshot = await getDocs(q);
+    const { data: transaction, id: transactionId } = await fetchSingleDocument<TransactionRecord>({
+      collectionRef: transactionsRef,
+      field: 'checkoutRequestID',
+      value: CheckoutRequestID,
+    });
 
-    if (querySnapshot.empty) {
+    if (!transaction || !transactionId) {
       console.error('Transaction not found for CheckoutRequestID:', CheckoutRequestID);
       return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
     }
 
-    const transactionDoc = querySnapshot.docs[0];
-    const transaction = transactionDoc.data() as TransactionRecord;
-    const transactionRef = doc(db, 'transactions', transactionDoc.id);
+    const transactionRef = doc(db, 'transactions', transactionId);
 
     // ResultCode 0 = Success, anything else = Failed
     const isSuccess = ResultCode === 0;
@@ -271,7 +258,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(`Transaction ${transactionDoc.id} updated:`, updateData);
+    console.log(`Transaction ${transactionId} updated:`, updateData);
 
     // Always return success to M-Pesa
     return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
