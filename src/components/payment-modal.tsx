@@ -13,7 +13,6 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Phone, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { useUser } from '@/firebase';
-import { useTransactionPolling } from '@/hooks/use-transaction-polling';
 import { useToast } from '@/hooks/use-toast';
 import type { TransactionType } from '@/types';
 
@@ -44,8 +43,8 @@ export function PaymentModal({
   const [isInitiating, setIsInitiating] = useState(false);
   const [transactionId, setTransactionId] = useState<string | null>(null);
   const [checkoutRequestID, setCheckoutRequestID] = useState<string | null>(null);
-
-  const pollResult = useTransactionPolling(checkoutRequestID);
+  const [status, setStatus] = useState<'IDLE' | 'SUCCESS' | 'FAILED' | 'PENDING'>('IDLE');
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   // Auto-format phone number as user types
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,13 +104,17 @@ export function PaymentModal({
 
       const data = await response.json();
 
+      if (response.status === 503) {
+        throw new Error('M-Pesa integration is temporarily unavailable. Please try again later.');
+      }
+
       if (!response.ok || !data.success) {
         throw new Error(data.error || 'Payment initiation failed');
       }
 
       setTransactionId(data.transactionId);
       setCheckoutRequestID(data.documentId);
-
+      setStatus('PENDING');
       toast({
         title: 'Payment initiated',
         description: 'Please enter your M-Pesa PIN on your phone',
@@ -124,13 +127,15 @@ export function PaymentModal({
         description: error.message || 'Failed to initiate payment. Please try again.',
         variant: 'destructive',
       });
+      setStatus('FAILED');
+      setStatusMessage(error.message);
       setIsInitiating(false);
     }
   };
 
   const handleClose = () => {
     // Don't close if payment is in progress
-    if (pollResult.isPolling || isInitiating) {
+    if (isInitiating || status === 'PENDING') {
       return;
     }
 
@@ -139,11 +144,13 @@ export function PaymentModal({
     setTransactionId(null);
     setCheckoutRequestID(null);
     setIsInitiating(false);
+    setStatus('IDLE');
+    setStatusMessage(null);
 
     onOpenChange(false);
 
     // Call success callback if payment was successful
-    if (pollResult.status === 'SUCCESS' && onSuccess) {
+    if (status === 'SUCCESS' && onSuccess) {
       onSuccess();
     }
   };
@@ -152,39 +159,39 @@ export function PaymentModal({
     setTransactionId(null);
     setCheckoutRequestID(null);
     setIsInitiating(false);
+    setStatus('IDLE');
+    setStatusMessage(null);
   };
 
   const getStatusIcon = () => {
-    if (pollResult.status === 'SUCCESS') {
+    if (status === 'SUCCESS') {
       return <CheckCircle2 className="h-12 w-12 text-green-500" />;
     }
-    if (pollResult.status === 'FAILED') {
+    if (status === 'FAILED') {
       return <XCircle className="h-12 w-12 text-red-500" />;
     }
-    if (pollResult.isPolling) {
+    if (status === 'PENDING') {
       return <Loader2 className="h-12 w-12 text-primary animate-spin" />;
     }
     return null;
   };
 
   const getStatusMessage = () => {
-    if (pollResult.status === 'SUCCESS') {
+    if (status === 'SUCCESS') {
       return {
         title: 'Payment Successful!',
-        description: pollResult.mpesaReceiptNumber
-          ? `Receipt: ${pollResult.mpesaReceiptNumber}`
-          : 'Your payment has been processed successfully.',
+        description: 'Your payment has been processed successfully.',
         variant: 'default' as const,
       };
     }
-    if (pollResult.status === 'FAILED') {
+    if (status === 'FAILED') {
       return {
         title: 'Payment Failed',
-        description: pollResult.error || 'Payment was not completed. Please try again.',
+        description: statusMessage || 'Payment was not completed. Please try again.',
         variant: 'destructive' as const,
       };
     }
-    if (pollResult.isPolling) {
+    if (status === 'PENDING') {
       return {
         title: 'Waiting for payment...',
         description: 'Please enter your M-Pesa PIN on your phone to complete the payment.',
@@ -195,8 +202,8 @@ export function PaymentModal({
   };
 
   const statusInfo = getStatusMessage();
-  const showPaymentForm = !isInitiating && !transactionId && !pollResult.isPolling;
-  const showStatus = transactionId && (pollResult.isPolling || pollResult.status);
+  const showPaymentForm = !isInitiating && transactionId === null && status === 'IDLE';
+  const showStatus = transactionId && status !== 'IDLE';
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
