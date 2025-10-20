@@ -30,14 +30,27 @@ export function AdminDashboard() {
   const getStatusLabel = (status: string) => statusLabelMap[status] ?? status;
 
   useEffect(() => {
+    if (!db) {
+      console.warn('AdminDashboard: Firestore instance is unavailable.');
+      setLoading(false);
+      return;
+    }
+
     async function fetchStats() {
       try {
         // Fetch users
-        const usersSnap = await getDocs(collection(db, 'users'));
+        const firestore = db;
+        if (!firestore) {
+          console.warn('AdminDashboard: Firestore became unavailable during fetch.');
+          setLoading(false);
+          return;
+        }
+
+        const usersSnap = await getDocs(collection(firestore, 'users'));
         const users = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
         // Fetch listings
-        const listingsSnap = await getDocs(collection(db, 'listings'));
+        const listingsSnap = await getDocs(collection(firestore, 'listings'));
         const listings = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
         // Calculate stats

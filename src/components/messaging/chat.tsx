@@ -52,7 +52,7 @@ export function Chat({ conversationId, onBack }: ChatProps) {
 
   // Load conversation details
   useEffect(() => {
-    if (!conversationId) return;
+    if (!conversationId || !db) return;
 
     const unsubscribe = onSnapshot(
       doc(db, 'conversations', conversationId),
@@ -68,7 +68,7 @@ export function Chat({ conversationId, onBack }: ChatProps) {
 
   // Load messages
   useEffect(() => {
-    if (!conversationId) return;
+    if (!conversationId || !db) return;
 
     const messagesRef = collection(db, 'messages');
     const q = query(
@@ -90,7 +90,11 @@ export function Chat({ conversationId, onBack }: ChatProps) {
         snapshot.docs.forEach(async (messageDoc) => {
           const message = messageDoc.data() as Message;
           if (message.senderId !== user.uid && !message.read) {
-            await updateDoc(doc(db, 'messages', messageDoc.id), {
+      if (!db) {
+        return;
+      }
+
+      await updateDoc(doc(db, 'messages', messageDoc.id), {
               read: true,
             });
           }
@@ -110,10 +114,12 @@ export function Chat({ conversationId, onBack }: ChatProps) {
   }, [conversationId, db, user]);
 
   const updateUnreadCount = async () => {
-    if (!user || !conversationId) return;
+    if (!user || !conversationId || !db) return;
+
+    const firestore = db;
 
     try {
-      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationRef = doc(firestore, 'conversations', conversationId);
       await updateDoc(conversationRef, {
         [`unreadCount.${user.uid}`]: 0,
       });
@@ -123,7 +129,9 @@ export function Chat({ conversationId, onBack }: ChatProps) {
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !user || !conversation) return;
+    if (!newMessage.trim() || !user || !conversation || !db) return;
+
+    const firestore = db;
 
     setSending(true);
 
@@ -138,12 +146,24 @@ export function Chat({ conversationId, onBack }: ChatProps) {
         createdAt: serverTimestamp() as Timestamp,
       };
 
-      await addDoc(collection(db, 'messages'), messageData);
+      if (!db) {
+        return;
+      }
+
+      if (!db) {
+        return;
+      }
+
+      await addDoc(collection(firestore, 'messages'), messageData);
 
       // Update conversation
       const otherUserId = conversation.participants.find(p => p !== user.uid);
 
-      await updateDoc(doc(db, 'conversations', conversationId), {
+      if (!db) {
+        return;
+      }
+
+      await updateDoc(doc(firestore, 'conversations', conversationId), {
         lastMessage: newMessage.trim(),
         lastMessageAt: serverTimestamp(),
         [`unreadCount.${otherUserId}`]: (conversation.unreadCount[otherUserId || ''] || 0) + 1,
@@ -164,7 +184,9 @@ export function Chat({ conversationId, onBack }: ChatProps) {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user || !conversation) return;
+    if (!file || !user || !conversation || !db) return;
+
+    const firestore = db;
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
@@ -215,12 +237,12 @@ export function Chat({ conversationId, onBack }: ChatProps) {
         createdAt: serverTimestamp() as Timestamp,
       };
 
-      await addDoc(collection(db, 'messages'), messageData);
+      await addDoc(collection(firestore, 'messages'), messageData);
 
       // Update conversation
       const otherUserId = conversation.participants.find(p => p !== user.uid);
 
-      await updateDoc(doc(db, 'conversations', conversationId), {
+      await updateDoc(doc(firestore, 'conversations', conversationId), {
         lastMessage: 'Sent an image',
         lastMessageAt: serverTimestamp(),
         [`unreadCount.${otherUserId}`]: (conversation.unreadCount[otherUserId || ''] || 0) + 1,

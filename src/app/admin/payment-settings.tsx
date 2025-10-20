@@ -82,6 +82,14 @@ export function PaymentSettingsPanel() {
 
   const confirmToggle = async () => {
     if (!confirmDialog || !user?.email) return;
+    if (!db) {
+      toast({
+        title: 'Update Failed',
+        description: 'Database connection unavailable.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setUpdating(confirmDialog.feature);
 
@@ -107,6 +115,14 @@ export function PaymentSettingsPanel() {
 
   const handlePriceUpdate = async (feature: PaymentFeature) => {
     if (!user?.email) return;
+    if (!db) {
+      toast({
+        title: 'Update Failed',
+        description: 'Database connection unavailable.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setUpdating(feature);
 

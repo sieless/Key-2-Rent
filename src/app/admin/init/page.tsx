@@ -65,6 +65,11 @@ export default function AdminInitPage() {
     updateTaskStatus('platform-settings', 'running');
 
     try {
+      if (!db) {
+        updateTaskStatus('platform-settings', 'error', 'Database connection unavailable');
+        throw new Error('Firestore not initialized');
+      }
+
       const settingsRef = doc(db, 'platformSettings', 'config');
       const settingsSnap = await getDoc(settingsRef);
 
@@ -93,6 +98,11 @@ export default function AdminInitPage() {
     updateTaskStatus('migrate-images', 'running');
 
     try {
+      if (!db) {
+        updateTaskStatus('migrate-images', 'error', 'Database connection unavailable');
+        throw new Error('Firestore not initialized');
+      }
+
       const listingsCollection = collection(db, 'listings');
       const snapshot = await getDocs(listingsCollection);
 

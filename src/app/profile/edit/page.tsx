@@ -82,7 +82,7 @@ export default function EditProfilePage() {
   // Load user data
   useEffect(() => {
     async function loadProfile() {
-      if (!user) return;
+      if (!user || !db) return;
 
       try {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
@@ -130,6 +130,10 @@ export default function EditProfilePage() {
 
     try {
       // Update Firestore user document
+      if (!db) {
+        throw new Error('Database unavailable');
+      }
+
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, {
         name: formData.name,

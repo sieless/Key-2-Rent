@@ -27,7 +27,7 @@ export function usePaymentStatus(): PaymentStatus {
   });
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !db) {
       setStatus({
         canViewContacts: false,
         contactAccessExpiresAt: null,
@@ -40,7 +40,16 @@ export function usePaymentStatus(): PaymentStatus {
 
     async function checkPaymentStatus() {
       try {
-        const userDoc = await getDoc(doc(db, 'users', user!.uid));
+        const firestore = db;
+        if (!firestore) {
+          throw new Error('Database unavailable');
+        }
+
+        if (!user) {
+          return;
+        }
+
+        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
 
         if (!userDoc.exists()) {
           setStatus({

@@ -57,7 +57,9 @@ export function useAutoLogout() {
     const handleLogout = async () => {
       try {
         // Clear session
-        await signOut(auth);
+        if (auth) {
+          await signOut(auth);
+        }
 
         // Clear local storage
         localStorage.clear();

@@ -10,7 +10,7 @@ interface FirebaseClientProviderProps {
 
 // Global singleton to ensure Firebase is only initialized once
 let firebaseServices: ReturnType<typeof initializeFirebase> | null = null;
-let initializationPromise: Promise<ReturnType<typeof initializeFirebase>> | null = null;
+let initializationPromise: Promise<ReturnType<typeof initializeFirebase> | null> | null = null;
 
 async function getFirebaseServices(): Promise<ReturnType<typeof initializeFirebase> | null> {
   // Return cached services if already initialized
@@ -24,7 +24,7 @@ async function getFirebaseServices(): Promise<ReturnType<typeof initializeFireba
   }
 
   // Create new initialization promise
-  initializationPromise = new Promise((resolve, reject) => {
+  initializationPromise = new Promise((resolve) => {
     try {
       // Detect React Strict Mode double rendering in development
       const isDev = process.env.NODE_ENV === 'development';
@@ -41,7 +41,7 @@ async function getFirebaseServices(): Promise<ReturnType<typeof initializeFireba
       console.error('FirebaseClientProvider: Failed to initialize Firebase:', error);
       
       // Check if it's a configuration error
-      if (error.message?.includes('Missing required Firebase configuration')) {
+      if (error instanceof Error && error.message.includes('Missing required Firebase configuration')) {
         console.error('FirebaseClientProvider: Please check your .env.local file');
       }
       

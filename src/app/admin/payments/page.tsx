@@ -54,7 +54,7 @@ export default function AdminPaymentsPage() {
 
   // Check admin access
   useEffect(() => {
-    if (user && !isAdmin(user)) {
+    if (user && !isAdmin(user.email)) {
       router.push('/');
     }
   }, [user, router]);
@@ -62,7 +62,7 @@ export default function AdminPaymentsPage() {
   // Fetch transactions and calculate stats
   useEffect(() => {
     async function fetchData() {
-      if (!user) return;
+      if (!user || !db) return;
 
       try {
         setLoading(true);
@@ -187,7 +187,7 @@ export default function AdminPaymentsPage() {
     a.click();
   };
 
-  if (!user || !isAdmin(user)) {
+  if (!user || !isAdmin(user.email)) {
     return null;
   }
 

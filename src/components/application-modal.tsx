@@ -132,6 +132,10 @@ export function ApplicationModal({
         createdAt: serverTimestamp(),
       };
 
+      if (!db) {
+        throw new Error('Database unavailable');
+      }
+
       await addDoc(collection(db, 'applications'), applicationData);
 
       toast({

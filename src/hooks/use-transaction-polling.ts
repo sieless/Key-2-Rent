@@ -38,6 +38,11 @@ export function useTransactionPolling(transactionId: string | null): Transaction
       return;
     }
 
+    if (!db) {
+      setResult(prev => ({ ...prev, isPolling: false, error: 'Database unavailable' }));
+      return;
+    }
+
     setResult(prev => ({ ...prev, isPolling: true }));
 
     // Set up real-time listener

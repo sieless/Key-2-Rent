@@ -31,12 +31,13 @@ export function ConversationsList({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !db) {
       setLoading(false);
       return;
     }
 
-    const conversationsRef = collection(db, 'conversations');
+    const firestore = db;
+    const conversationsRef = collection(firestore, 'conversations');
     const q = query(
       conversationsRef,
       where('participants', 'array-contains', user.uid),

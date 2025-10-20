@@ -140,7 +140,7 @@ export function FeaturedPropertiesAdminPanel() {
     const unsubscribe = onSnapshot(featuredQuery, async snapshot => {
       setLoading(true);
       const docs = snapshot.docs.map(docSnap => ({
-        record: { id: docSnap.id, ...(docSnap.data() as FeaturedProperty) },
+        record: { ...(docSnap.data() as FeaturedProperty), id: docSnap.id },
         listing: null,
       }));
 
@@ -175,7 +175,7 @@ export function FeaturedPropertiesAdminPanel() {
         return null;
       }
       const data = snap.data() as Listing;
-      return { id: snap.id, ...data } satisfies Listing;
+      return { ...data, id: snap.id } satisfies Listing;
     } catch (error) {
       console.error('Failed to load listing for featured program', error);
       return null;

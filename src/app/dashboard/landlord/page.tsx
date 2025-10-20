@@ -109,6 +109,10 @@ export default function LandlordDashboard() {
       router.push('/login');
       return;
     }
+    if (!db) {
+      setLoading(false);
+      return;
+    }
 
     // Fetch user's listings
     const listingsQuery = query(
@@ -126,9 +130,9 @@ export default function LandlordDashboard() {
       setListings(userListings);
 
       // Calculate stats
-      const published = userListings.filter(l => l.status === 'published').length;
-      const rented = userListings.filter(l => l.status === 'rented').length;
-      const activeForRevenue = userListings.filter(l => l.status === 'published' || l.status === 'rented');
+      const published = userListings.filter(l => l.status === 'Vacant').length;
+      const rented = userListings.filter(l => l.status === 'Occupied').length;
+      const activeForRevenue = userListings.filter(l => l.status === 'Vacant' || l.status === 'Occupied');
       const totalRevenue = activeForRevenue.reduce((sum, l) => sum + l.price, 0);
       const denominator = published + rented;
       const occupancyRate = denominator > 0 ? (rented / denominator) * 100 : 0;
@@ -150,26 +154,27 @@ export default function LandlordDashboard() {
     return () => unsubscribe();
   }, [user, isUserLoading, db, router]);
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: Listing['status']) => {
     switch (status) {
-      case 'published': return 'bg-green-100 text-green-800 border-green-200';
-      case 'rented': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'pending_approval': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'Vacant':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'Occupied':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Available Soon':
+        return 'bg-green-100 text-green-800 border-green-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
   const getStatusLabel = (status: Listing['status']) => {
     switch (status) {
-      case 'pending_approval':
-        return 'Pending Approval';
-      case 'published':
-        return 'Published';
-      case 'rented':
-        return 'Rented';
-      case 'rejected':
-        return 'Rejected';
+      case 'Vacant':
+        return 'Vacant';
+      case 'Occupied':
+        return 'Occupied';
+      case 'Available Soon':
+        return 'Available Soon';
       default:
         return status;
     }

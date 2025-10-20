@@ -32,6 +32,12 @@ export function usePlatformSettings() {
   const db = useFirestore();
 
   useEffect(() => {
+    if (!db) {
+      setSettings(getDefaultSettings());
+      setLoading(false);
+      return;
+    }
+
     const settingsRef = doc(db, 'platformSettings/config');
 
     const unsubscribe = onSnapshot(

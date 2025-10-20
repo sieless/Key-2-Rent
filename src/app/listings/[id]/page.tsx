@@ -118,6 +118,7 @@ export default function ListingDetailPage() {
 
   const listingRef = useMemoFirebase(() => {
     if (typeof id !== 'string') return null;
+    if (!db) return null;
     return doc(db, 'listings', id);
   }, [id, db]);
 

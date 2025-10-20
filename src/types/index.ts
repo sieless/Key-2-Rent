@@ -16,6 +16,7 @@ export type Listing = {
   deposit?: number;
   depositMonths?: number;
   businessTerms?: string;
+  description?: string;
   features: string[];
   images: string[];
   contact: string;
@@ -114,6 +115,11 @@ export type UserProfile = {
   preferredCounty?: string;
   createdAt?: Timestamp;
   suspended?: boolean;
+  notificationPreferences?: {
+    listingAlerts?: boolean;
+    paymentReminders?: boolean;
+    marketingUpdates?: boolean;
+  };
 }
 
 export type AdminStats = {

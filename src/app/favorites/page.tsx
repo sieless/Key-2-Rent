@@ -54,6 +54,10 @@ export default function FavoritesPage() {
         const allListings: Listing[] = [];
 
         for (const batch of batches) {
+          if (!db) {
+            break;
+          }
+
           const q = query(
             collection(db, 'listings'),
             where(documentId(), 'in', batch)

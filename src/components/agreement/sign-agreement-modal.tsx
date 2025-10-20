@@ -119,6 +119,10 @@ export function SignAgreementModal({
         createdAt: serverTimestamp(),
       };
 
+      if (!db) {
+        throw new Error('Database unavailable');
+      }
+
       await addDoc(collection(db, 'signedAgreements'), signedAgreementData);
 
       toast({
@@ -129,7 +133,7 @@ export function SignAgreementModal({
       onOpenChange(false);
 
       // Reset form
-      setFormData({
+      setTenantFormData({
         fullName: user?.displayName || '',
         idNumber: '',
         phone: '',

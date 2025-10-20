@@ -55,6 +55,12 @@ export function UsersManagementTable() {
 
   async function fetchUsers() {
     try {
+      if (!db) {
+        console.warn('UsersTable: Firestore unavailable.');
+        setLoading(false);
+        return;
+      }
+
       const usersSnap = await getDocs(collection(db, 'users'));
       const usersData = usersSnap.docs.map((doc) => ({
         id: doc.id,
@@ -79,6 +85,10 @@ export function UsersManagementTable() {
     try {
       // Delete all user's listings first
       if (user.listings && user.listings.length > 0) {
+        if (!db) {
+          throw new Error('Firestore not available');
+        }
+
         const batch = writeBatch(db);
         user.listings.forEach((listingId) => {
           batch.delete(doc(db, 'listings', listingId));
@@ -87,6 +97,10 @@ export function UsersManagementTable() {
       }
 
       // Delete user document
+      if (!db) {
+        throw new Error('Firestore not available');
+      }
+
       await deleteDoc(doc(db, 'users', user.id));
 
       toast({
@@ -113,6 +127,10 @@ export function UsersManagementTable() {
   async function handleToggleSuspend(user: UserProfile) {
     setActionLoading(true);
     try {
+      if (!db) {
+        throw new Error('Firestore not available');
+      }
+
       await updateDoc(doc(db, 'users', user.id), {
         suspended: !user.suspended,
       });

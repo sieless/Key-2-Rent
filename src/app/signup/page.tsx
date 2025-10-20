@@ -42,12 +42,20 @@ export default function SignupPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
+      if (!auth) {
+        throw new Error('Authentication service unavailable. Please try again later.');
+      }
+
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
       await updateProfile(user, { displayName: name });
 
       // Create a user profile document in Firestore
+      if (!db) {
+        throw new Error('Database unavailable');
+      }
+
       await setDoc(doc(db, 'users', user.uid), {
         name: name,
         email: user.email,

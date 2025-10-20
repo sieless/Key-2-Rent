@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           error: 'Server configuration error. Please contact support.',
-          details: process.env.NODE_ENV === 'development' ? configError.message : undefined
+          details: process.env.NODE_ENV === 'development' && configError instanceof Error ? configError.message : undefined
         },
         { status: 500 }
       );
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           error: 'Invalid form data. Please ensure you are sending a proper multipart/form-data request.',
-          details: process.env.NODE_ENV === 'development' ? parseError.message : undefined
+          details: process.env.NODE_ENV === 'development' && parseError instanceof Error ? parseError.message : undefined
         },
         { status: 400 }
       );
@@ -113,7 +113,12 @@ export async function POST(request: NextRequest) {
               width: result?.width,
               height: result?.height
             });
-            resolve(result);
+            resolve({
+              secure_url: result?.secure_url ?? '',
+              public_id: result?.public_id ?? '',
+              width: result?.width,
+              height: result?.height,
+            });
           }
         }
       );

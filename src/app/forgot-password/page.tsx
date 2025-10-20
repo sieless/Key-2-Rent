@@ -31,6 +31,10 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
+      if (!auth) {
+        throw new Error('Authentication service unavailable. Please try again later.');
+      }
+
       await sendPasswordResetEmail(auth, email);
       setIsSent(true);
     } catch (error: any) {

@@ -25,7 +25,7 @@ export function useStartConversation() {
   const [loading, setLoading] = useState(false);
 
   const startConversation = async (listing: Listing) => {
-    if (!user) {
+    if (!user || !db) {
       toast({
         title: 'Sign in required',
         description: 'Please sign in to message landlords',
@@ -49,7 +49,8 @@ export function useStartConversation() {
 
     try {
       // Check if conversation already exists
-      const conversationsRef = collection(db, 'conversations');
+      const firestore = db;
+      const conversationsRef = collection(firestore, 'conversations');
       const q = query(
         conversationsRef,
         where('participants', 'array-contains', user.uid),
@@ -82,7 +83,7 @@ export function useStartConversation() {
       const docRef = await addDoc(conversationsRef, conversationData);
 
       // Add initial system message
-      await addDoc(collection(db, 'messages'), {
+      await addDoc(collection(firestore, 'messages'), {
         conversationId: docRef.id,
         senderId: 'system',
         senderName: 'System',

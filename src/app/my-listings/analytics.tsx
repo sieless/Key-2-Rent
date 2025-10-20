@@ -38,16 +38,16 @@ export function LandlordAnalytics({ listings }: AnalyticsProps) {
   // Calculate statistics
   const totalListings = listings.length;
 
-  const publishedCount = listings.filter(l => l.status === 'published').length;
-  const rentedCount = listings.filter(l => l.status === 'rented').length;
-  const pendingApprovalCount = listings.filter(l => l.status === 'pending_approval').length;
+  const publishedCount = listings.filter(l => l.status === 'Vacant').length;
+  const rentedCount = listings.filter(l => l.status === 'Occupied').length;
+  const pendingApprovalCount = listings.filter(l => l.status === 'Available Soon').length;
 
   const averagePrice = totalListings > 0
     ? Math.round(listings.reduce((sum, l) => sum + l.price, 0) / totalListings)
     : 0;
 
   const totalMonthlyRevenuePotential = listings
-    .filter(l => l.status === 'rented')
+    .filter(l => l.status === 'Occupied')
     .reduce((sum, l) => sum + l.price, 0);
 
   const featuredCount = listings.filter(l => l.isFeatured).length;

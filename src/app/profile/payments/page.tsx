@@ -41,7 +41,7 @@ export default function PaymentHistoryPage() {
   // Fetch user transactions
   useEffect(() => {
     async function fetchTransactions() {
-      if (!user) return;
+      if (!user || !db) return;
 
       try {
         setLoading(true);

@@ -15,7 +15,7 @@ import Link from 'next/link';
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isUserLoading } = useUser();
-  const { profile, isLoading } = useCurrentUserProfile();
+  const { profile, loading: isProfileLoading } = useCurrentUserProfile();
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -27,7 +27,7 @@ export default function ProfilePage() {
     return null;
   }
 
-  if (isLoading) {
+  if (isProfileLoading) {
     return (
       <div className="container mx-auto py-10 px-4 max-w-2xl">
         <div className="text-center py-12">
@@ -40,7 +40,7 @@ export default function ProfilePage() {
 
   const displayName = profile?.name || user.displayName || 'Unnamed user';
   const email = profile?.email || user.email || 'Not provided';
-  const phone = profile?.phoneNumber || profile?.landlordSettings?.contactPhone || user.phoneNumber || 'Not provided';
+  const phone = profile?.phoneNumber || user.phoneNumber || 'Not provided';
   const county = profile?.preferredCounty || 'Not set';
   const accountType = profile?.accountType || 'tenant';
   const experienceLevel = profile?.experienceLevel || 'new';

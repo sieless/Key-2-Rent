@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { db, isFirebaseInitialized, getFirebaseStatus } from '@/lib/firebase-config';
-import { collection, query, onSnapshot, QueryConstraint, doc, getDoc, DocumentReference } from 'firebase/firestore';
+import { getFirestore, getFirebaseStatus, isFirebaseInitialized } from '@/lib/firebase-config';
+import { collection, query, onSnapshot, QueryConstraint, doc, getDoc, DocumentReference, Firestore } from 'firebase/firestore';
 
 interface FirestoreHookResult<T = any> {
   data: T[];
@@ -41,7 +41,9 @@ export function useFirestoreCollection<T = any>(
     }
 
     const status = getFirebaseStatus();
-    if (!status.initialized || !status.hasDb || !db) {
+    const firestoreInstance = getFirestore();
+
+    if (!status.initialized || !status.hasDb || !firestoreInstance) {
       setLoading(false);
       if (status.configValid === false) {
         setError(new Error('Firebase configuration is invalid'));
@@ -54,7 +56,7 @@ export function useFirestoreCollection<T = any>(
 
     const setupListener = () => {
       try {
-        const q = query(collection(db, collectionName), ...constraints);
+        const q = query(collection(firestoreInstance, collectionName), ...constraints);
         
         unsubscribe = onSnapshot(
           q,
@@ -125,7 +127,8 @@ export function useFirestoreDoc<T = any>(
     }
 
     const status = getFirebaseStatus();
-    if (!status.initialized || !status.hasDb || !db) {
+    const firestoreInstance = getFirestore();
+    if (!status.initialized || !status.hasDb || !firestoreInstance) {
       setLoading(false);
       if (status.configValid === false) {
         setError(new Error('Firebase configuration is invalid'));
@@ -135,7 +138,7 @@ export function useFirestoreDoc<T = any>(
 
     const fetchDoc = async () => {
       try {
-        const docReference = typeof docRef === 'string' ? doc(db, docRef) : docRef;
+        const docReference = typeof docRef === 'string' ? doc(firestoreInstance, docRef) : docRef;
         const docSnap = await getDoc(docReference);
         
         if (docSnap.exists()) {

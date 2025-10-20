@@ -84,14 +84,20 @@ export function ListingsManagementTable() {
   }, [searchTerm, typeFilter, statusFilter, listings]);
 
   async function fetchListings() {
+    if (!db) {
+      console.warn('ListingsTable: Firestore unavailable.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const listingsSnap = await getDocs(collection(db, 'listings'));
       const listingsData = listingsSnap.docs.map((docSnap) => {
         const data = docSnap.data() as Listing;
         return {
-          id: docSnap.id,
           adminListingId: data.adminListingId ?? docSnap.id,
           ...data,
+          id: docSnap.id,
         } satisfies Listing;
       });
       setListings(listingsData);
@@ -111,6 +117,10 @@ export function ListingsManagementTable() {
   async function handleDeleteListing(listing: Listing) {
     setActionLoading(true);
     try {
+      if (!db) {
+        throw new Error('Firestore not available');
+      }
+
       await deleteDoc(doc(db, 'listings', listing.id));
 
       toast({
@@ -137,6 +147,10 @@ export function ListingsManagementTable() {
   async function handleUpdateStatus(listingId: string, newStatus: Listing['status']) {
     setActionLoading(true);
     try {
+      if (!db) {
+        throw new Error('Firestore not available');
+      }
+
       await updateDoc(doc(db, 'listings', listingId), {
         status: newStatus,
       });
@@ -163,6 +177,10 @@ export function ListingsManagementTable() {
   async function handleApproveListing(listing: Listing) {
     setActionLoading(true);
     try {
+      if (!db) {
+        throw new Error('Firestore not available');
+      }
+
       await updateDoc(doc(db, 'listings', listing.id), {
         approvalStatus: 'approved',
         adminFeedback: null,
@@ -191,7 +209,7 @@ export function ListingsManagementTable() {
   async function handleRejectListing(listing: Listing) {
     const reason = window.prompt(
       'Provide a rejection reason for this listing:',
-      listing.rejectionReason || ''
+      listing.adminFeedback || ''
     );
 
     if (reason === null) {
@@ -200,6 +218,10 @@ export function ListingsManagementTable() {
 
     setActionLoading(true);
     try {
+      if (!db) {
+        throw new Error('Firestore not available');
+      }
+
       await updateDoc(doc(db, 'listings', listing.id), {
         status: 'rejected',
         rejectionReason: reason.trim() || 'No reason provided',

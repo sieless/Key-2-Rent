@@ -174,13 +174,21 @@ export function AddListingModal({ isOpen = false, onClose, renderInline = false 
       if (!listingPayload.name) delete listingPayload.name;
       if (!listingPayload.businessTerms) delete listingPayload.businessTerms;
 
-      const fieldsToProcessAsNumbers = ['price', 'deposit', 'depositMonths', 'totalUnits', 'availableUnits'];
+      const fieldsToProcessAsNumbers: Array<keyof ListingData> = ['price', 'deposit', 'depositMonths', 'totalUnits', 'availableUnits'];
       fieldsToProcessAsNumbers.forEach(field => {
-        if (listingPayload[field] === '' || listingPayload[field] === undefined || isNaN(listingPayload[field])) {
-            delete listingPayload[field];
-        } else {
-            listingPayload[field] = Number(listingPayload[field]);
+        const value = listingPayload[field];
+        if (value === '' || value === undefined || value === null) {
+          delete listingPayload[field];
+          return;
         }
+
+        const numericValue = Number(value);
+        if (Number.isNaN(numericValue)) {
+          delete listingPayload[field];
+          return;
+        }
+
+        listingPayload[field] = numericValue;
       });
 
       const isVacant = data.status === 'Vacant';
@@ -194,6 +202,10 @@ export function AddListingModal({ isOpen = false, onClose, renderInline = false 
       listingPayload.amountDue = isVacant ? computedAmount : null;
       listingPayload.proofUploadUrl = null;
       listingPayload.confirmationText = null;
+
+      if (!db) {
+        throw new Error('Database unavailable');
+      }
 
       const listingRef = await addDoc(collection(db, 'listings'), listingPayload);
 

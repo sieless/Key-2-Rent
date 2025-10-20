@@ -54,7 +54,7 @@ export function ViewingScheduleModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user) {
+    if (!user || !db) {
       toast({
         title: 'Not logged in',
         description: 'Please log in to request a viewing',
@@ -84,7 +84,8 @@ export function ViewingScheduleModal({
         createdAt: serverTimestamp(),
       };
 
-      await addDoc(collection(db, 'viewings'), viewingData);
+      const firestore = db;
+      await addDoc(collection(firestore, 'viewings'), viewingData);
 
       toast({
         title: 'Viewing request sent',

@@ -12,9 +12,9 @@ import { Badge } from '@/components/ui/badge';
 import { Phone, MessageSquare } from 'lucide-react';
 
 type VacancyPaymentPageProps = {
-  params: {
+  params: Promise<{
     listingId: string;
-  };
+  }>;
 };
 
 const SUPPORT_CONTACT = process.env.NEXT_PUBLIC_VACANCY_SUPPORT_CONTACT ?? '0708674665';

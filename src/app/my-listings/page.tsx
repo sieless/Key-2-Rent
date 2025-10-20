@@ -150,7 +150,7 @@ export default function MyListingsPage() {
   const handleToggleAvailability = async (listing: Listing) => {
     if (!db) return;
 
-    if (listing.status === 'pending_approval') {
+    if (listing.status === 'Available Soon') {
       toast({
         title: 'Pending review',
         description: 'This listing is awaiting admin approval before it can go live.',
@@ -158,7 +158,7 @@ export default function MyListingsPage() {
       return;
     }
 
-    if (listing.status === 'rejected') {
+    if (listing.status === 'Occupied') {
       toast({
         variant: 'destructive',
         title: 'Listing rejected',
@@ -167,10 +167,10 @@ export default function MyListingsPage() {
       return;
     }
 
-    const isCurrentlyPublished = listing.status === 'published';
-    const newStatus: Listing['status'] = isCurrentlyPublished ? 'rented' : 'published';
+    const isCurrentlyPublished = listing.status === 'Vacant';
+    const newStatus: Listing['status'] = isCurrentlyPublished ? 'Occupied' : 'Vacant';
     const total = listing.totalUnits ?? 1;
-    const newAvailableUnits = newStatus === 'published' ? Math.max(1, total) : 0;
+    const newAvailableUnits = newStatus === 'Vacant' ? Math.max(1, total) : 0;
 
     setUpdatingStatusId(listing.id);
 
@@ -181,8 +181,8 @@ export default function MyListingsPage() {
       });
 
       toast({
-        title: newStatus === 'published' ? 'Listing published' : 'Listing marked as rented',
-        description: newStatus === 'published'
+        title: newStatus === 'Vacant' ? 'Listing published' : 'Listing marked as rented',
+        description: newStatus === 'Vacant'
           ? 'Your property is now visible to renters.'
           : 'Your property is no longer visible in search results.',
       });
@@ -204,7 +204,7 @@ export default function MyListingsPage() {
     const listing = listings.find(l => l.id === listingId);
     if (!listing) return;
 
-    if (listing.status === 'pending_approval') {
+    if (listing.status === 'Available Soon') {
       toast({
         title: 'Pending review',
         description: 'Units cannot be updated until the listing is approved.',
@@ -212,7 +212,7 @@ export default function MyListingsPage() {
       return;
     }
 
-    if (listing.status === 'rejected') {
+    if (listing.status === 'Occupied') {
       toast({
         variant: 'destructive',
         title: 'Listing rejected',
@@ -224,7 +224,7 @@ export default function MyListingsPage() {
     const totalUnits = listing.totalUnits ?? 1;
     const currentAvailable = listing.availableUnits ?? 0;
     const newAvailable = Math.max(0, Math.min(totalUnits, currentAvailable + adjustment));
-    const newStatus: Listing['status'] = newAvailable === 0 ? 'rented' : 'published';
+    const newStatus: Listing['status'] = newAvailable === 0 ? 'Occupied' : 'Vacant';
 
     if (newAvailable === currentAvailable && listing.status === newStatus) {
       return;
@@ -256,14 +256,12 @@ export default function MyListingsPage() {
 
   const getStatusLabel = (status: Listing['status']) => {
     switch (status) {
-      case 'pending_approval':
-        return 'Pending Approval';
-      case 'published':
-        return 'Published';
-      case 'rented':
+      case 'Vacant':
+        return 'Vacant';
+      case 'Occupied':
         return 'Fully Rented';
-      case 'rejected':
-        return 'Rejected';
+      case 'Available Soon':
+        return 'Available Soon';
       default:
         return status;
     }
@@ -271,14 +269,12 @@ export default function MyListingsPage() {
 
   const getStatusIcon = (status: Listing['status']) => {
     switch (status) {
-      case 'pending_approval':
-        return <Hourglass className="mr-1.5 h-4 w-4" />;
-      case 'published':
+      case 'Vacant':
         return <CheckCircle2 className="mr-1.5 h-4 w-4" />;
-      case 'rented':
+      case 'Occupied':
         return <Building2 className="mr-1.5 h-4 w-4" />;
-      case 'rejected':
-        return <XCircle className="mr-1.5 h-4 w-4" />;
+      case 'Available Soon':
+        return <Hourglass className="mr-1.5 h-4 w-4" />;
       default:
         return null;
     }
@@ -377,10 +373,10 @@ export default function MyListingsPage() {
               const totalUnits = listing.totalUnits ?? 1;
               const availableUnits = listing.availableUnits ?? 0;
               const isMultiUnit = totalUnits > 1;
-              const isPendingStatus = listing.status === 'pending_approval';
-              const isRejectedStatus = listing.status === 'rejected';
+              const isPendingStatus = listing.status === 'Available Soon';
+              const isRejectedStatus = listing.status === 'Occupied';
               const canAdjustUnits = !isPendingStatus && !isRejectedStatus;
-              const canToggleStatus = ['published', 'rented'].includes(listing.status);
+              const canToggleStatus = ['Vacant', 'Occupied'].includes(listing.status);
 
               return (
               <Card key={listing.id} className="overflow-hidden flex flex-col h-full">
@@ -427,14 +423,14 @@ export default function MyListingsPage() {
                       {getPropertyIcon(listing.type)} {listing.type}
                     </p>
                   </div>
-                  {listing.status === 'pending_approval' && (
+                  {listing.status === 'Available Soon' && (
                     <p className="mt-3 flex items-center gap-2 text-sm font-medium text-amber-600">
                       <Hourglass className="h-4 w-4" /> Awaiting admin approval
                     </p>
                   )}
-                  {listing.status === 'rejected' && (
+                  {listing.status === 'Occupied' && (
                     <p className="mt-3 flex items-center gap-2 text-sm font-medium text-destructive">
-                      <XCircle className="h-4 w-4" /> Listing rejected{listing.rejectionReason ? `: ${listing.rejectionReason}` : ''}
+                      <XCircle className="h-4 w-4" /> Listing currently occupied
                     </p>
                   )}
                   {/* Multi-unit indicator */}
@@ -513,12 +509,12 @@ export default function MyListingsPage() {
                       >
                         {updatingStatusId === listing.id ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : listing.status === 'published' ? (
+                        ) : listing.status === 'Vacant' ? (
                           <XCircle className="mr-2 h-4 w-4" />
                         ) : (
                           <CheckCircle2 className="mr-2 h-4 w-4" />
                         )}
-                         {listing.status === 'published' ? 'Mark as rented' : 'Mark as available'}
+                        {listing.status === 'Vacant' ? 'Mark as rented' : 'Mark as available'}
                       </Button>
                       <DeleteListingDialog onConfirm={() => handleDelete(listing.id)} />
                     </div>

@@ -82,6 +82,10 @@ export function UploadAgreement({ listing, onUploadComplete }: UploadAgreementPr
       const { url: downloadURL } = await uploadResponse.json();
 
       // Save agreement record to Firestore
+      if (!db) {
+        throw new Error('Database unavailable');
+      }
+
       await addDoc(collection(db, 'agreements'), {
         listingId: listing.id,
         landlordId: user.uid,

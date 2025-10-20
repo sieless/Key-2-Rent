@@ -64,7 +64,11 @@ export default function AdminDiagnosticsPage() {
 
   // Check admin access
   useEffect(() => {
-    if (user && !isAdmin(user)) {
+    if (!user) {
+      return;
+    }
+
+    if (!isAdmin(user.email)) {
       router.push('/');
     }
   }, [user, router]);
@@ -117,6 +121,15 @@ export default function AdminDiagnosticsPage() {
       const collections = ['users', 'listings', 'transactions'];
       const issues = [];
 
+      if (!db) {
+        return {
+          category: 'Database',
+          status: 'CRITICAL',
+          message: 'Database connection not available',
+          recommendation: 'Ensure Firestore is initialized before running diagnostics',
+        };
+      }
+
       for (const collectionName of collections) {
         const snapshot = await getDocs(query(collection(db, collectionName), limit(1)));
         if (snapshot.empty && collectionName !== 'transactions') {
@@ -153,6 +166,15 @@ export default function AdminDiagnosticsPage() {
 
   const checkUserAccounts = async (): Promise<DiagnosticResult> => {
     try {
+      if (!db) {
+        return {
+          category: 'Users',
+          status: 'CRITICAL',
+          message: 'Database connection not available',
+          recommendation: 'Ensure Firestore is initialized before running diagnostics',
+        };
+      }
+
       const usersSnapshot = await getDocs(collection(db, 'users'));
       const suspendedUsers = usersSnapshot.docs.filter(doc => doc.data().suspended === true);
 
@@ -186,6 +208,15 @@ export default function AdminDiagnosticsPage() {
 
   const checkListingQuality = async (): Promise<DiagnosticResult> => {
     try {
+      if (!db) {
+        return {
+          category: 'Listings',
+          status: 'CRITICAL',
+          message: 'Database connection not available',
+          recommendation: 'Ensure Firestore is initialized before running diagnostics',
+        };
+      }
+
       const listingsSnapshot = await getDocs(collection(db, 'listings'));
       const listings = listingsSnapshot.docs.map(doc => doc.data());
 
@@ -223,6 +254,15 @@ export default function AdminDiagnosticsPage() {
 
   const checkTransactions = async (): Promise<DiagnosticResult> => {
     try {
+      if (!db) {
+        return {
+          category: 'Transactions',
+          status: 'CRITICAL',
+          message: 'Database connection not available',
+          recommendation: 'Ensure Firestore is initialized before running diagnostics',
+        };
+      }
+
       const transactionsSnapshot = await getDocs(collection(db, 'transactions'));
       const transactions = transactionsSnapshot.docs.map(doc => doc.data());
 
@@ -307,6 +347,15 @@ export default function AdminDiagnosticsPage() {
 
   const checkSecurityIssues = async (): Promise<DiagnosticResult> => {
     try {
+      if (!db) {
+        return {
+          category: 'Security',
+          status: 'CRITICAL',
+          message: 'Database connection not available',
+          recommendation: 'Ensure Firestore is initialized before running diagnostics',
+        };
+      }
+
       // Check for common security issues
       const issues = [];
 
@@ -335,6 +384,15 @@ export default function AdminDiagnosticsPage() {
 
     try {
       // Simulate a database query
+      if (!db) {
+        return {
+          category: 'Performance',
+          status: 'CRITICAL',
+          message: 'Database connection not available',
+          recommendation: 'Ensure Firestore is initialized before running diagnostics',
+        };
+      }
+
       await getDocs(query(collection(db, 'listings'), limit(10)));
 
       const endTime = performance.now();
@@ -372,6 +430,11 @@ export default function AdminDiagnosticsPage() {
 
   const fetchSystemMetrics = async () => {
     try {
+      if (!db) {
+        setMetrics(null);
+        return;
+      }
+
       const [usersSnap, listingsSnap, transactionsSnap, conversationsSnap] = await Promise.all([
         getDocs(collection(db, 'users')),
         getDocs(collection(db, 'listings')),
@@ -415,7 +478,7 @@ export default function AdminDiagnosticsPage() {
     }
   };
 
-  if (!user || !isAdmin(user)) {
+  if (!user || !isAdmin(user.email)) {
     return null;
   }
 

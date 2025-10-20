@@ -21,6 +21,7 @@ type VacantPaymentRecord = {
   proofUploadUrl?: string | null;
   visibilityStatus?: "hidden" | "visible";
   listingName?: string;
+  name?: string;
   landlordName?: string;
   createdAt?: any;
 };
@@ -38,6 +39,10 @@ export function VacantPaymentsPanel() {
     async function loadRecords() {
       setLoading(true);
       try {
+        if (!db) {
+          throw new Error('Firestore not available');
+        }
+
         const q = query(collection(db, "listings"), orderBy("createdAt", "desc"));
         const snap = await getDocs(q);
         const data = snap.docs
@@ -63,6 +68,10 @@ export function VacantPaymentsPanel() {
     if (!db) return;
     setActionId(listingId);
     try {
+      if (!db) {
+        throw new Error('Firestore not available');
+      }
+
       await updateDoc(doc(db, "listings", listingId), updates as any);
       setRecords((prev) => prev.map((item) => (item.id === listingId ? { ...item, ...updates } : item)));
       toast({ title: "Update saved" });

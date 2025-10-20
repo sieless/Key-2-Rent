@@ -1,4 +1,4 @@
-import { initializeApp, getApps, App, ServiceAccount } from 'firebase-admin/app';
+import { initializeApp, getApps, App, cert, type ServiceAccount } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
@@ -29,7 +29,7 @@ export function getFirebaseAdmin() {
 
     // Initialize the app
     adminApp = initializeApp({
-      credential: firebaseAdminConfig,
+      credential: cert(firebaseAdminConfig),
       projectId: firebaseAdminConfig.projectId,
     });
 
