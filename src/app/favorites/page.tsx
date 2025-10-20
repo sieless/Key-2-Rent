@@ -124,7 +124,6 @@ export default function FavoritesPage() {
                 <ListingCard
                   key={listing.id}
                   listing={listing}
-                  isSubscribed={true}
                 />
               ))}
             </div>

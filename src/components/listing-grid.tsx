@@ -6,11 +6,10 @@ import { cn } from "@/lib/utils";
 
 type ListingGridProps = {
   listings: Listing[];
-  isSubscribed: boolean;
   columns?: 3 | 4;
 };
 
-export function ListingGrid({ listings, isSubscribed, columns = 3 }: ListingGridProps) {
+export function ListingGrid({ listings, columns = 3 }: ListingGridProps) {
   return (
     <div>
       {listings.length > 0 ? (
@@ -19,7 +18,7 @@ export function ListingGrid({ listings, isSubscribed, columns = 3 }: ListingGrid
             columns === 3 ? "lg:grid-cols-3" : "lg:grid-cols-3 xl:grid-cols-4"
         )}>
           {listings.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} isSubscribed={isSubscribed} />
+            <ListingCard key={listing.id} listing={listing} />
           ))}
         </div>
       ) : (

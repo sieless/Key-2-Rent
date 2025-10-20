@@ -1,0 +1,25 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Allow public read access for all files in the bucket
+    // This enables anyone to view images on your rental listings
+    match /{allPaths=**} {
+      allow read: if true;
+    }
+
+    // Allow authenticated users to write and delete images ONLY within their specific listing path
+    // The path here MUST match the structure used in your uploadImage function:
+    // listings/{userId}/{listingId}/{fileName}
+    match /listings/{userId}/{listingId}/{fileName} {
+      // Allow write if the user is authenticated AND the userId in the path matches their auth.uid
+      // This prevents users from uploading to other users' folders
+      allow write: if request.auth != null && request.auth.uid == userId;
+
+      // Allow delete if the user is authenticated AND the userId in the path matches their auth.uid
+      // This prevents users from deleting other users' images
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

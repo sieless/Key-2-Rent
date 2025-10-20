@@ -20,9 +20,9 @@ import { RentalTypes } from './rental-types';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Hero } from './hero';
-import { FeaturedListings } from './featured-listings';
 import { Button } from './ui/button';
 import Link from 'next/link';
+import { FeaturedProperties } from '@/components/featured-properties';
 
 
 function LoadingSkeletons() {
@@ -76,7 +76,6 @@ export function ListingsView() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const isSubscribed = useMemo(() => !!user, [user]);
 
   useEffect(() => {
     // Don't try to fetch listings if Firestore isn't initialized yet
@@ -122,7 +121,7 @@ export function ListingsView() {
     }
   };
 
-  const { featuredListings, regularListings } = useMemo(() => {
+  const regularListings = useMemo(() => {
     const filtered = listings.filter(listing => {
         const locationMatch =
             filters.location === 'All' || listing.location === filters.location;
@@ -131,15 +130,7 @@ export function ListingsView() {
         const statusMatch = filters.status === 'All' || listing.status === filters.status;
         return locationMatch && typeMatch && priceMatch && statusMatch;
     });
-
-    const featured = (filters.location === 'All' && filters.type === 'All') 
-      ? listings.slice(0, 2) 
-      : [];
-
-    return {
-        featuredListings: featured,
-        regularListings: filtered,
-    }
+    return filtered;
   }, [listings, filters]);
 
   const visibleListings = useMemo(() => {
@@ -169,61 +160,55 @@ export function ListingsView() {
       <Header onPostClick={handlePostClick} />
       <Hero />
       <main className="flex-grow w-full">
-         <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-           {loading ? (
-              <LoadingSkeletons />
+        <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          {loading ? (
+            <LoadingSkeletons />
           ) : (
             <div className="space-y-12">
               <RentalTypes onTypeSelect={handleTypeSelect} selectedType={filters.type} />
-              
-              {featuredListings.length > 0 && (
-                  <FeaturedListings listings={featuredListings} isSubscribed={isSubscribed} />
-              )}
-              
-              <div>
-                  <FilterPanel filters={filters} onFilterChange={handleFilterChange} />
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-3xl font-bold text-foreground">
-                        All Properties ({regularListings.length})
-                    </h2>
-                    <div className="flex gap-2">
-                      <Button
-                        variant={viewMode === 'categorized' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setViewMode('categorized')}
-                      >
-                        By Category
-                      </Button>
-                      <Button
-                        variant={viewMode === 'grid' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setViewMode('grid')}
-                      >
-                        All Listings
+              <FeaturedProperties />
+
+              <FilterPanel filters={filters} onFilterChange={handleFilterChange} />
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-3xl font-bold text-foreground">
+                  All Properties ({regularListings.length})
+                </h2>
+                <div className="flex gap-2">
+                  <Button
+                    variant={viewMode === 'categorized' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('categorized')}
+                  >
+                    By Category
+                  </Button>
+                  <Button
+                    variant={viewMode === 'grid' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('grid')}
+                  >
+                    All Listings
+                  </Button>
+                </div>
+              </div>
+
+              {viewMode === 'categorized' ? (
+                <CategorizedListingGrid
+                  listings={regularListings}
+                  showCategories={filters.type === 'All'}
+                  maxPerCategory={6}
+                />
+              ) : (
+                <>
+                  <ListingGrid listings={visibleListings} />
+                  {hasMore && (
+                    <div className="text-center mt-10">
+                      <Button size="lg" asChild>
+                        <Link href="/all-properties">View All</Link>
                       </Button>
                     </div>
-                  </div>
-
-                  {viewMode === 'categorized' ? (
-                    <CategorizedListingGrid
-                      listings={regularListings}
-                      isSubscribed={isSubscribed}
-                      showCategories={filters.type === 'All'}
-                      maxPerCategory={6}
-                    />
-                  ) : (
-                    <>
-                      <ListingGrid listings={visibleListings} isSubscribed={isSubscribed} />
-                      {hasMore && (
-                        <div className="text-center mt-10">
-                          <Button size="lg" asChild>
-                            <Link href="/all-properties">View All</Link>
-                          </Button>
-                        </div>
-                      )}
-                    </>
                   )}
-              </div>
+                </>
+              )}
             </div>
           )}
         </div>

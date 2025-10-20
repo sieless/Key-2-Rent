@@ -23,8 +23,9 @@ type FilterPanelProps = {
 
 const statusOptions = [
   { value: 'All', label: 'All' },
-  { value: 'published', label: 'Available' },
-  { value: 'rented', label: 'Rented Out' },
+  { value: 'Vacant', label: 'Vacant' },
+  { value: 'Occupied', label: 'Occupied' },
+  { value: 'Available Soon', label: 'Available Soon' },
 ];
 
 export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {

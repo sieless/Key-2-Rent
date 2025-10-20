@@ -37,15 +37,14 @@ export function useUserProfile(): UserProfileHookState {
         const data = snapshot.data() as Partial<UserProfile>;
         const normalized: UserProfile = {
           id: snapshot.id,
-          email: data.email ?? null,
+          email: data.email ?? '',
           name: data.name ?? '',
           listings: data.listings ?? [],
           canViewContacts: data.canViewContacts ?? false,
-          role: data.role ?? 'renter',
-          landlordApplicationStatus: data.landlordApplicationStatus ?? 'none',
-          landlordApplicationId: data.landlordApplicationId,
-          isTrustedLandlord: data.isTrustedLandlord,
-          phoneNumber: data.phoneNumber ?? null,
+          accountType: data.accountType ?? 'tenant',
+          experienceLevel: data.experienceLevel,
+          phoneNumber: data.phoneNumber,
+          preferredCounty: data.preferredCounty,
           createdAt: data.createdAt,
           suspended: data.suspended,
         };
@@ -62,3 +61,5 @@ export function useUserProfile(): UserProfileHookState {
 
   return state;
 }
+
+export const useCurrentUserProfile = useUserProfile;

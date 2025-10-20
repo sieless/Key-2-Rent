@@ -26,18 +26,16 @@ export const getSubscriptionFee = (type: string) => {
 };
 
 export const getStatusClass = (status: Listing['status']) => {
-    switch (status) {
-      case 'published':
-        return 'bg-emerald-500 text-white hover:bg-emerald-600';
-      case 'pending_approval':
-        return 'bg-amber-500 text-white hover:bg-amber-600';
-      case 'rented':
-        return 'bg-slate-500 text-white hover:bg-slate-600';
-      case 'rejected':
-        return 'bg-red-500 text-white hover:bg-red-600';
-      default:
-        return 'bg-gray-500 text-white hover:bg-gray-600';
-    }
+  switch (status) {
+    case 'Vacant':
+      return 'bg-emerald-600 text-white hover:bg-emerald-700';
+    case 'Available Soon':
+      return 'bg-sky-600 text-white hover:bg-sky-700';
+    case 'Occupied':
+      return 'bg-rose-600 text-white hover:bg-rose-700';
+    default:
+      return 'bg-gray-500 text-white hover:bg-gray-600';
+  }
 };
 
 export const getPropertyIcon = (type: string, className?: string): React.ReactElement<LucideProps> => {

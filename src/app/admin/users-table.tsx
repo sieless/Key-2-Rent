@@ -180,7 +180,7 @@ export function UsersManagementTable() {
                   <TableHead>Email</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>Verification</TableHead>
+                  <TableHead>Account Type</TableHead>
                   <TableHead>Listings</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead>Status</TableHead>
@@ -199,14 +199,7 @@ export function UsersManagementTable() {
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.email}</TableCell>
                       <TableCell>{user.name}</TableCell>
-                      <TableCell>{user.role === 'landlord' ? 'Landlord' : 'Renter'}</TableCell>
-                      <TableCell>
-                        {user.landlordApplicationStatus ? (
-                          <Badge variant="outline">{user.landlordApplicationStatus}</Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">n/a</span>
-                        )}
-                      </TableCell>
+                      <TableCell>{user.accountType === 'landlord' ? 'Landlord' : 'Renter'}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">{user.listings?.length || 0}</Badge>
                       </TableCell>

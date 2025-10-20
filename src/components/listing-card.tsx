@@ -6,54 +6,40 @@ import Link from 'next/link';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, Hourglass, MapPin, Lock, Star, Zap, Heart, Building2, MessageCircle, CheckCircle2, XCircle } from "lucide-react";
-import { type Listing } from "@/types";
-import { cn, getPropertyIcon, getStatusClass } from "@/lib/utils";
-import { DefaultPlaceholder } from "./default-placeholder";
-import { useFeatureEnabled, usePlatformSettings } from "@/hooks/use-platform-settings";
-import { useListingFavorite } from "@/hooks/use-favorites";
-import { usePaymentStatus } from "@/hooks/use-payment-status";
-import { PaymentModal } from "@/components/payment-modal";
-import { useToast } from "@/hooks/use-toast";
-import { useUser } from "@/firebase";
-import { useRouter } from "next/navigation";
-import { useStartConversation } from "@/hooks/use-start-conversation";
+import { Phone, Hourglass, MapPin, Star, Zap, Heart, Building2, MessageCircle, CheckCircle2 } from 'lucide-react';
+import { type Listing } from '@/types';
+import { cn, getPropertyIcon, getStatusClass } from '@/lib/utils';
+import { DefaultPlaceholder } from './default-placeholder';
+import { useListingFavorite } from '@/hooks/use-favorites';
+import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/firebase';
+import { useRouter } from 'next/navigation';
+import { VacancyPaymentModal } from './vacancy-payment-modal';
+import { useStartConversation } from '@/hooks/use-start-conversation';
 
 
 type ListingCardProps = {
   listing: Listing;
-  isSubscribed: boolean;
 };
 
 
 export function ListingCard({ listing }: ListingCardProps) {
   const hasImages = listing.images && listing.images.length > 0;
-  const contactPaymentEnabled = useFeatureEnabled('contact');
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const { isFavorited, toggle: toggleFavorite } = useListingFavorite(listing.id);
   const { toast } = useToast();
   const { user } = useUser();
   const router = useRouter();
-  const paymentStatus = usePaymentStatus();
   const { startConversation, loading: startingConversation } = useStartConversation();
-
-  const statusLabelMap: Record<Listing['status'], string> = {
-    pending_approval: 'Coming Soon',
-    published: 'Available',
-    rented: 'Rented Out',
-    rejected: 'Unavailable',
-  };
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const isContactable = Boolean(user && user.uid !== listing.userId);
 
   const statusIconMap: Record<Listing['status'], ReactNode> = {
-    pending_approval: <Hourglass className="mr-1.5 h-4 w-4" />,
-    published: <CheckCircle2 className="mr-1.5 h-4 w-4" />,
-    rented: <Building2 className="mr-1.5 h-4 w-4" />,
-    rejected: <XCircle className="mr-1.5 h-4 w-4" />,
+    Vacant: <CheckCircle2 className="mr-1.5 h-4 w-4" />,
+    Occupied: <Building2 className="mr-1.5 h-4 w-4" />,
+    'Available Soon': <Hourglass className="mr-1.5 h-4 w-4" />,
   };
 
-  const statusLabel = statusLabelMap[listing.status] ?? 'Unavailable';
   const statusIcon = statusIconMap[listing.status];
-  const isContactable = listing.status === 'published';
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigation to listing detail
@@ -69,92 +55,50 @@ export function ListingCard({ listing }: ListingCardProps) {
     e.preventDefault();
     e.stopPropagation();
 
-    if (!isContactable) {
-      toast({
-        title: 'Listing unavailable',
-        description: 'This property is not currently accepting inquiries.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Check if user is logged in
     if (!user) {
       toast({
         title: 'Sign in required',
-        description: 'Please sign in to view contact information',
+        description: 'Create an account or log in to contact landlords.',
         variant: 'destructive',
       });
       router.push('/signup');
       return;
     }
 
-    // If contact payment is enabled, check payment status
-    if (contactPaymentEnabled) {
-      if (paymentStatus.canViewContacts && !paymentStatus.needsRenewal) {
-        // User has active subscription, show contact directly
-        window.location.href = `tel:${listing.contact}`;
-      } else {
-        // User needs to pay or renew
-        setShowPaymentModal(true);
-      }
-    } else {
-      // Free mode, show contact directly
-      window.location.href = `tel:${listing.contact}`;
+    if (listing.status === 'Vacant') {
+      setShowPaymentModal(true);
+      return;
     }
-  };
-
-  const handlePaymentSuccess = () => {
-    toast({
-      title: 'Payment successful!',
-      description: 'You can now view all landlord contacts for 30 days',
-    });
-    setShowPaymentModal(false);
-    // Refresh payment status
-    window.location.reload();
+    window.location.href = `tel:${listing.contact}`;
   };
 
   const renderContactButton = () => {
-    if (!isContactable) {
-      return (
-        <Button disabled className="flex-1" variant="outline">
-          <Lock className="mr-2 h-4 w-4" />
-          {statusLabel}
-        </Button>
-      );
-    }
-
-    if (contactPaymentEnabled) {
-      if (paymentStatus.loading) {
-        return (
-          <Button disabled className="flex-1">
-            <Phone className="mr-2 h-4 w-4 animate-pulse" />
-            Loading...
-          </Button>
-        );
-      }
-
-      if (paymentStatus.canViewContacts && !paymentStatus.needsRenewal) {
+    if (listing.status === 'Vacant') {
+      if (user && user.uid === listing.userId) {
         return (
           <Button
-            onClick={handleContactClick}
-            variant="secondary"
-            className="flex-1 text-lg font-semibold text-green-600 hover:text-green-700"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowPaymentModal(true);
+            }}
+            variant="default"
+            className="flex-1 font-semibold"
           >
             <Phone className="mr-2 h-4 w-4" />
-            {user ? listing.contact : 'Sign in to view'}
+            Confirm Listing Payment
           </Button>
         );
       }
 
       return (
         <Button
-          onClick={handleContactClick}
-          className="flex-1"
-          variant="default"
+          disabled
+          variant="outline"
+          className="flex-1 font-semibold"
         >
-          <Lock className="mr-2 h-4 w-4" />
-          {user ? 'Unlock Contact - KES 100' : 'Sign in to view'}
+          <Phone className="mr-2 h-4 w-4" />
+          Pending
         </Button>
       );
     }
@@ -163,7 +107,7 @@ export function ListingCard({ listing }: ListingCardProps) {
       <Button
         onClick={handleContactClick}
         variant="secondary"
-        className="flex-1 text-lg font-semibold text-green-600 hover:text-green-700"
+        className="flex-1 text-base font-semibold text-green-600 hover:text-green-700"
       >
         <Phone className="mr-2 h-4 w-4" />
         {user ? listing.contact : 'Sign in to view contact'}
@@ -172,9 +116,10 @@ export function ListingCard({ listing }: ListingCardProps) {
   };
 
   return (
-    <Card className="overflow-hidden group transform hover:-translate-y-1 transition-all duration-300 hover:shadow-xl flex flex-col h-full">
-      <Link href={`/listings/${listing.id}`} className="flex flex-col h-full">
-        <div className="relative w-full h-56 flex-shrink-0 overflow-hidden bg-muted rounded-t-lg">
+    <>
+      <Card className="overflow-hidden group transform hover:-translate-y-1 transition-all duration-300 hover:shadow-xl flex flex-col h-full">
+        <Link href={`/listings/${listing.id}`} className="flex flex-col h-full">
+        <div className="relative w-full h-64 flex-shrink-0 overflow-hidden bg-muted rounded-t-lg">
             {hasImages ? (
               <Image
                 src={listing.images[0]}
@@ -197,7 +142,7 @@ export function ListingCard({ listing }: ListingCardProps) {
               )}
             >
               {statusIcon}
-              {statusLabel}
+              {listing.status}
             </Badge>
 
             {/* Multi-unit Badge - shows availability for multi-unit properties */}
@@ -243,8 +188,8 @@ export function ListingCard({ listing }: ListingCardProps) {
               />
             </button>
         </div>
-        <CardContent className="p-5 flex flex-col flex-grow">
-          <div className="flex items-center justify-between mb-3 text-sm text-muted-foreground">
+        <CardContent className="p-4 flex flex-col flex-grow">
+          <div className="flex items-center justify-between mb-2 text-xs text-muted-foreground">
             <p className="font-semibold flex items-center gap-2">
               <MapPin className="w-4 h-4" /> {listing.location}
             </p>
@@ -253,71 +198,72 @@ export function ListingCard({ listing }: ListingCardProps) {
             </p>
           </div>
            {listing.name && (
-            <h3 className="text-xl font-bold text-foreground leading-tight truncate mb-1">
+            <h3 className="text-lg font-semibold text-foreground leading-tight truncate mb-1">
               {listing.name}
             </h3>
           )}
-          <h3 className="text-2xl font-bold text-foreground leading-tight">
+          <h3 className="text-xl font-semibold text-foreground leading-tight">
             Ksh {listing.price?.toLocaleString() || "0"}
-            <span className="text-base font-normal text-muted-foreground">/month</span>
+            <span className="text-sm font-normal text-muted-foreground">/month</span>
           </h3>
-          <div className="mt-4 border-t pt-4 flex-grow">
-            <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
+          <div className="mt-3 border-t pt-3 flex-grow">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase mb-2">
               Features
             </p>
             <div className="flex flex-wrap gap-2">
               {listing.features?.length > 0 ? (
                 listing.features.slice(0, 3).map((feature) => ( // Show max 3 features
-                  <Badge key={feature} variant="secondary" className="font-normal">
+                  <Badge key={feature} variant="secondary" className="font-normal text-xs px-2 py-1">
                     {feature}
                   </Badge>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">No extra features listed.</p>
+                <p className="text-xs text-muted-foreground">No extra features listed.</p>
               )}
               {listing.features?.length > 3 && (
-                <Badge variant="outline">+{listing.features.length - 3} more</Badge>
+                <Badge variant="outline" className="text-xs px-2 py-1">+{listing.features.length - 3} more</Badge>
               )}
             </div>
           </div>
         </CardContent>
-      </Link>
-      <CardFooter className="p-5 mt-auto border-t">
-        <div className="w-full space-y-2">
-          {/* Contact Button */}
-          <div className="flex gap-2">
-            {renderContactButton()}
+        </Link>
+        <CardFooter className="p-4 mt-auto border-t">
+          <div className="w-full space-y-2">
+            {/* Contact Button */}
+            <div className="flex gap-2">
+              {renderContactButton()}
 
-            {/* Message Button */}
-            {user && user.uid !== listing.userId && (
-              <Button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  startConversation(listing);
-                }}
-                variant="outline"
-                size="icon"
-                disabled={startingConversation || !isContactable}
-                title="Message Landlord"
-              >
-                <MessageCircle className="h-4 w-4" />
-              </Button>
-            )}
+              {/* Message Button */}
+              {user && user.uid !== listing.userId && (
+                <Button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    startConversation(listing);
+                  }}
+                  variant="outline"
+                  size="icon"
+                  disabled={startingConversation || !isContactable}
+                  title="Message Landlord"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
           </div>
-
-          {/* M-Pesa Payment Modal */}
-          <PaymentModal
-            open={showPaymentModal}
-            onOpenChange={setShowPaymentModal}
-            amount={100}
-            type="CONTACT_ACCESS"
-            onSuccess={handlePaymentSuccess}
-            title="Unlock Contact Access"
-            description="Get unlimited access to all landlord contacts for 30 days"
-          />
-        </div>
-      </CardFooter>
-    </Card>
+        </CardFooter>
+      </Card>
+      <VacancyPaymentModal
+        open={showPaymentModal}
+        onOpenChange={setShowPaymentModal}
+        propertyType={listing.type}
+        monthlyRent={listing.price}
+        listingStatus={listing.status}
+        listingReference={listing.name || listing.location}
+        successRedirectUrl={`/payments/vacancy/${listing.id}`}
+        onPaymentConfirmed={async () => ({ redirectUrl: `/payments/vacancy/${listing.id}` })}
+      />
+    </>
   );
 }

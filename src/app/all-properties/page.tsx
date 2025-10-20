@@ -71,7 +71,6 @@ export default function AllPropertiesPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const isSubscribed = useMemo(() => !!user, [user]);
 
   useEffect(() => {
     // Don't try to fetch listings if Firestore isn't initialized yet
@@ -120,7 +119,7 @@ export default function AllPropertiesPage() {
       const typeMatch = filters.type === 'All' || listing.type === filters.type;
       const priceMatch = listing.price <= filters.maxPrice;
       const statusMatch = filters.status === 'All'
-        ? listing.status === 'published'
+        ? true
         : listing.status === filters.status;
       return locationMatch && typeMatch && priceMatch && statusMatch;
     });
@@ -132,12 +131,13 @@ export default function AllPropertiesPage() {
       if (a.isBoosted && !b.isBoosted) return -1;
       if (!a.isBoosted && b.isBoosted) return 1;
 
-      const statusPriority: Record<string, number> = {
-        published: 3,
-        rented: 2,
+      const statusPriority: Record<Listing['status'], number> = {
+        Vacant: 3,
+        'Available Soon': 2,
+        Occupied: 1,
       };
-      const aPriority = statusPriority[a.status] || 0;
-      const bPriority = statusPriority[b.status] || 0;
+      const aPriority = statusPriority[a.status as Listing['status']] || 0;
+      const bPriority = statusPriority[b.status as Listing['status']] || 0;
 
       if (aPriority !== bPriority) {
         return bPriority - aPriority;
@@ -175,7 +175,6 @@ export default function AllPropertiesPage() {
                 </h1>
                 <ListingGrid
                   listings={filteredListings}
-                  isSubscribed={isSubscribed}
                   columns={4}
                 />
               </div>

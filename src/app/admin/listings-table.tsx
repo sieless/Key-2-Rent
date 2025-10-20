@@ -13,7 +13,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -33,7 +32,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, ExternalLink, Search, Loader2, Eye } from 'lucide-react';
+import { Trash2, ExternalLink, Search, Loader2, Eye, Copy } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 
@@ -51,22 +51,7 @@ export function ListingsManagementTable() {
   const { toast } = useToast();
   const { user } = useUser();
 
-  const getStatusLabel = (status: Listing['status']) => {
-    switch (status) {
-      case 'pending_approval':
-        return 'Pending Approval';
-      case 'published':
-        return 'Published';
-      case 'rented':
-        return 'Rented';
-      case 'rejected':
-        return 'Rejected';
-      default:
-        return status;
-    }
-  };
-
-  const statusOptions: Listing['status'][] = ['pending_approval', 'published', 'rented', 'rejected'];
+  const getStatusLabel = (status: Listing['status']) => status;
 
   useEffect(() => {
     fetchListings();
@@ -101,10 +86,14 @@ export function ListingsManagementTable() {
   async function fetchListings() {
     try {
       const listingsSnap = await getDocs(collection(db, 'listings'));
-      const listingsData = listingsSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Listing[];
+      const listingsData = listingsSnap.docs.map((docSnap) => {
+        const data = docSnap.data() as Listing;
+        return {
+          id: docSnap.id,
+          adminListingId: data.adminListingId ?? docSnap.id,
+          ...data,
+        } satisfies Listing;
+      });
       setListings(listingsData);
       setFilteredListings(listingsData);
     } catch (error) {
@@ -174,21 +163,16 @@ export function ListingsManagementTable() {
   async function handleApproveListing(listing: Listing) {
     setActionLoading(true);
     try {
-      const totalUnits = listing.totalUnits ?? 1;
-      const availableUnits = listing.availableUnits ?? 0;
-      const approvedUnits = availableUnits > 0 ? availableUnits : totalUnits;
-
       await updateDoc(doc(db, 'listings', listing.id), {
-        status: 'published',
-        availableUnits: approvedUnits,
-        approvedAt: serverTimestamp(),
-        approvedBy: user?.email ?? 'system',
-        rejectionReason: null,
+        approvalStatus: 'approved',
+        adminFeedback: null,
+        paymentStatus: 'paid',
+        visibilityStatus: 'visible',
       });
 
       toast({
-        title: 'Listing published',
-        description: `${listing.name || listing.type} is now live on the marketplace.`,
+        title: 'Listing approved',
+        description: `${listing.name || listing.type} is now visible to renters.`,
       });
 
       fetchListings();
@@ -245,7 +229,7 @@ export function ListingsManagementTable() {
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   }
 
-  const pendingListings = listings.filter((listing) => listing.status === 'pending_approval');
+  const pendingListings = listings.filter((listing) => listing.approvalStatus === 'pending');
   const uniqueTypes = Array.from(new Set(listings.map((l) => l.type)));
 
   if (loading) {
@@ -279,6 +263,31 @@ export function ListingsManagementTable() {
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-amber-900">
                     {listing.name || `${listing.type} in ${listing.location}`}
+                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="font-mono">{listing.adminListingId ?? listing.id}</span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(listing.adminListingId ?? listing.id);
+                            toast({
+                              title: 'Copied!',
+                              description: 'Property ID copied to clipboard.',
+                            });
+                          } catch {
+                            toast({
+                              title: 'Copy failed',
+                              description: 'Could not copy property ID. Try again.',
+                              variant: 'destructive',
+                            });
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 text-primary hover:underline"
+                      >
+                        <Copy className="h-3 w-3" />
+                        Copy ID
+                      </button>
+                    </div>
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Submitted on {formatDate(listing.createdAt)} · Ksh {listing.price.toLocaleString()} / month
@@ -352,6 +361,7 @@ export function ListingsManagementTable() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Property</TableHead>
+                  <TableHead>Admin ID</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Price</TableHead>
@@ -373,30 +383,44 @@ export function ListingsManagementTable() {
                       <TableCell className="font-medium">
                         {listing.name || `${listing.type} in ${listing.location}`}
                       </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono">{listing.adminListingId ?? listing.id}</span>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(listing.adminListingId ?? listing.id);
+                                toast({ title: 'Copied!', description: 'Property ID copied to clipboard.' });
+                              } catch {
+                                toast({ title: 'Copy failed', description: 'Try again.', variant: 'destructive' });
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                          >
+                            <Copy className="h-3 w-3" />
+                            Copy
+                          </button>
+                        </div>
+                      </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{listing.type}</Badge>
+                        <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                          {listing.type}
+                        </span>
                       </TableCell>
                       <TableCell>{listing.location}</TableCell>
                       <TableCell>Ksh {listing.price.toLocaleString()}</TableCell>
                       <TableCell>
-                        <Select
-                          value={listing.status}
-                          onValueChange={(value) =>
-                            handleUpdateStatus(listing.id, value as Listing['status'])
-                          }
-                          disabled={actionLoading}
+                        <span
+                          className={cn(
+                            'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold',
+                            listing.visibilityStatus === 'visible'
+                              ? 'bg-secondary text-secondary-foreground'
+                              : 'text-foreground'
+                          )}
                         >
-                          <SelectTrigger className="w-[140px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {statusOptions.map(option => (
-                              <SelectItem key={option} value={option}>
-                                {getStatusLabel(option)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          {listing.status}
+                        </span>
                       </TableCell>
                       <TableCell>{formatDate(listing.createdAt)}</TableCell>
                       <TableCell className="text-right">

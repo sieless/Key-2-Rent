@@ -10,7 +10,7 @@ import { Inter } from 'next/font/google';
 const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-inter',
+  weight: ['400', '500', '600', '700'],
 });
 
 export const metadata: Metadata = {
@@ -49,7 +49,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${inter.className} font-sans antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

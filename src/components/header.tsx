@@ -30,7 +30,7 @@ export function Header({ onPostClick }: HeaderProps) {
   const auth = useAuth();
   const router = useRouter();
   const { profile, loading: profileLoading } = useUserProfile();
-  const canPostListing = !!profile && profile.role === 'landlord' && profile.landlordApplicationStatus === 'approved';
+  const canPostListing = !!profile && profile.accountType === 'landlord';
 
   const handleSignOut = async () => {
     if (!auth) return;
@@ -65,7 +65,7 @@ export function Header({ onPostClick }: HeaderProps) {
             </Button>
           ) : user ? (
             <Button asChild variant="outline" className="hidden sm:flex">
-              <Link href="/become-landlord">Become a Landlord</Link>
+              <Link href="/landlord/payment-schedule">Landlord Guide</Link>
             </Button>
           ) : null}
           {!user && !isUserLoading && (
@@ -165,19 +165,10 @@ export function Header({ onPostClick }: HeaderProps) {
               <DropdownMenuContent align="end">
                  {user && (
                     <>
-                      {canPostListing ? (
-                        <DropdownMenuItem onClick={() => onPostClick?.()}>
-                          <PlusCircle className="mr-2 h-4 w-4" />
-                          <span>Post Listing</span>
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem asChild>
-                          <Link href="/become-landlord">
-                            <Shield className="mr-2 h-4 w-4" />
-                            <span>Become a Landlord</span>
-                          </Link>
-                        </DropdownMenuItem>
-                      )}
+                      <DropdownMenuItem onClick={() => onPostClick?.()}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        <span>Post Listing</span>
+                      </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link href="/favorites">
                           <Heart className="mr-2 h-4 w-4" />

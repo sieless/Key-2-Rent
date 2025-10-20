@@ -1,12 +1,13 @@
 'use server';
 import { type Timestamp } from 'firebase/firestore';
 
-export type ListingStatus = 'pending_approval' | 'published' | 'rented' | 'rejected';
-export type UserRole = 'renter' | 'landlord';
-export type LandlordApplicationStatus = 'pending_approval' | 'approved' | 'rejected';
+export type ListingApprovalStatus = 'pending' | 'approved' | 'rejected' | 'auto';
+export type UserAccountType = 'tenant' | 'landlord';
+export type LandlordExperienceLevel = 'new' | 'experienced';
 
 export type Listing = {
   id: string;
+  adminListingId?: string;
   userId: string;
   name?: string;
   type: string;
@@ -19,14 +20,11 @@ export type Listing = {
   images: string[];
   contact: string;
   createdAt: Timestamp;
-  status: ListingStatus;
+  status: 'Vacant' | 'Occupied' | 'Available Soon';
 
   // Multi-unit support
-  totalUnits: number;               // Total units in property (default: 1)
-  availableUnits: number;           // How many units are currently available
-  approvedAt?: Timestamp;           // When listing was approved/published
-  approvedBy?: string;              // Admin email who approved the listing
-  rejectionReason?: string;         // If rejected, reason provided by admin
+  totalUnits?: number;               // Total units in property (default: 1)
+  availableUnits?: number;           // How many units are currently available
 
   // Featured listing fields (activated when admin enables feature)
   isFeatured?: boolean;              // Is this a featured listing?
@@ -40,8 +38,52 @@ export type Listing = {
   boostedPaidAt?: Timestamp;         // When landlord paid for boost
   boostedPaidAmount?: number;        // Amount paid (KES)
 
-  // Vacancy payment system
-  pendingVacancyPayment?: boolean;   // Listing awaiting payment verification for vacancy status
+  // Vacant listing monetization
+  paymentStatus?: VacantListingPaymentStatus;
+  paymentMode?: '10% Monthly Rent' | null;
+  amountDue?: number | null;
+  proofUploadUrl?: string | null;
+  confirmationText?: string | null;
+  visibilityStatus?: 'hidden' | 'visible';
+  approvalStatus?: ListingApprovalStatus; // Admin approval workflow state
+  paymentUpdatedAt?: Timestamp | null;
+  adminFeedback?: string;             // Feedback when rejected or requires changes
+};
+
+export type FeaturedDisplayMode = 'single' | 'double';
+
+export type FeaturedProperty = {
+  id: string;
+  listingId: string;
+  featuredBy: string;
+  status: 'active' | 'expired';
+  agreementVerified: boolean;
+  displayMode: FeaturedDisplayMode;
+  startDate: Timestamp | null;
+  endDate: Timestamp | null;
+  createdAt: Timestamp | null;
+  updatedAt: Timestamp | null;
+  monthlyRent: number;
+  monthlyCharge: number;
+  billingStart: Timestamp | null;
+  billingEnd: Timestamp | null;
+};
+
+export type VacantListingPaymentStatus = 'pending' | 'paid' | 'rejected';
+
+export type VacantListingPayment = {
+  id: string;
+  listingId: string;
+  userId: string;
+  paymentType: 'VacantListing';
+  paymentMode: '10% Monthly Rent';
+  amount: number;
+  status: VacantListingPaymentStatus;
+  timestamp: Timestamp;
+  method: 'Mpesa';
+  proofMessage?: string | null;
+  proofAttachmentUrl?: string | null;
+  adminNote?: string | null;
 };
 
 export type ListingFormData = {
@@ -55,23 +97,23 @@ export type ListingFormData = {
   contact: string;
   images: File[];
   features: string[];
-  totalUnits: number;
-  availableUnits: number;
+  status: 'Vacant' | 'Occupied' | 'Available Soon';
+  totalUnits?: number | '';
+  availableUnits?: number | '';
 }
 
 export type UserProfile = {
-    id: string;
-    email: string | null;
-    name: string;
-    listings: string[];
-    canViewContacts: boolean;
-    role: UserRole;
-    landlordApplicationStatus?: 'none' | 'pending' | 'approved' | 'rejected';
-    landlordApplicationId?: string;
-    isTrustedLandlord?: boolean;
-    phoneNumber?: string | null;
-    createdAt?: Timestamp;
-    suspended?: boolean;
+  id: string;
+  email: string;
+  name: string;
+  listings: string[];
+  canViewContacts: boolean;
+  accountType: UserAccountType;
+  experienceLevel?: LandlordExperienceLevel;
+  phoneNumber?: string;
+  preferredCounty?: string;
+  createdAt?: Timestamp;
+  suspended?: boolean;
 }
 
 export type AdminStats = {
@@ -82,6 +124,22 @@ export type AdminStats = {
     listingsByStatus: Record<string, number>;
     recentUsers: number;
     recentListings: number;
+}
+
+export type LandlordApplicationStatus = 'pending' | 'approved' | 'rejected';
+
+export type AdminNotificationType = 'LISTING_APPROVAL' | 'PAYMENT_DECLARATION';
+
+export type AdminNotification = {
+  id: string;
+  type: AdminNotificationType;
+  referenceId: string;
+  title: string;
+  message: string;
+  status: 'pending' | 'completed';
+  createdAt: Timestamp;
+  completedAt?: Timestamp;
+  metadata?: Record<string, any>;
 }
 
 /**

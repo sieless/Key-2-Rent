@@ -70,16 +70,12 @@ export default function MyListingsPage() {
   const [updatingUnitsId, setUpdatingUnitsId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
   const { profile, loading: profileLoading } = useUserProfile();
-  const isVerifiedLandlord = profile?.role === 'landlord' && profile.landlordApplicationStatus === 'approved';
-  const isPendingVerification = profile?.role === 'landlord' && profile.landlordApplicationStatus === 'pending';
-  const isRejected = profile?.landlordApplicationStatus === 'rejected';
-
+  const isLandlord = profile?.accountType === 'landlord';
 
   useEffect(() => {
     if (isUserLoading || profileLoading) {
@@ -91,7 +87,7 @@ export default function MyListingsPage() {
       return;
     }
 
-    if (!db || !isVerifiedLandlord) {
+    if (!db || !isLandlord) {
       setListings([]);
       setLoading(false);
       return;
@@ -126,7 +122,7 @@ export default function MyListingsPage() {
     );
 
     return () => unsubscribe();
-  }, [user, isUserLoading, profileLoading, db, router, toast, isVerifiedLandlord]);
+  }, [user, isUserLoading, profileLoading, db, router, toast, isLandlord]);
 
   const handleDelete = async (listingId: string) => {
     if (!user || !db) return;
@@ -304,14 +300,14 @@ export default function MyListingsPage() {
     return null;
   }
 
-  if (!isVerifiedLandlord) {
+  if (!isLandlord) {
     return (
       <div className="flex flex-col min-h-screen">
         <Header onPostClick={() => {}} />
         <main className="flex-grow max-w-3xl mx-auto py-12 px-4 sm:px-6 lg:px-8 w-full">
           <div className="space-y-6">
             <h1 className="text-3xl font-bold text-foreground">Landlord Verification Required</h1>
-            {profile?.role !== 'landlord' ? (
+            {!profile?.accountType || profile.accountType !== 'landlord' ? (
               <Alert>
                 <AlertTitle className="flex items-center gap-2">
                   <ShieldAlert className="h-4 w-4" />
@@ -319,36 +315,10 @@ export default function MyListingsPage() {
                 </AlertTitle>
                 <AlertDescription className="space-y-4">
                   <p>
-                    You&apos;re currently registered as a renter. Apply to become a landlord to unlock property listing tools.
+                    You&apos;re currently registered as a renter. Switch your account to landlord from the profile editor to unlock listing tools.
                   </p>
                   <Button asChild>
-                    <Link href="/become-landlord">Start landlord verification</Link>
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            ) : isPendingVerification ? (
-              <Alert>
-                <AlertTitle className="flex items-center gap-2">
-                  <Hourglass className="h-4 w-4" />
-                  Verification in Progress
-                </AlertTitle>
-                <AlertDescription>
-                  Your landlord verification payment has been received. Our admin team will review and approve your account shortly.
-                  We&apos;ll email you once you&apos;re ready to start posting listings.
-                </AlertDescription>
-              </Alert>
-            ) : isRejected ? (
-              <Alert variant="destructive">
-                <AlertTitle className="flex items-center gap-2">
-                  <XCircle className="h-4 w-4" />
-                  Verification Rejected
-                </AlertTitle>
-                <AlertDescription className="space-y-3">
-                  <p>
-                    Your landlord verification was rejected. Please review the feedback sent to your email and resubmit the required information.
-                  </p>
-                  <Button asChild variant="outline">
-                    <Link href="/become-landlord">Resubmit verification</Link>
+                    <Link href="/landlord/payment-schedule">Learn how to list</Link>
                   </Button>
                 </AlertDescription>
               </Alert>
@@ -356,10 +326,10 @@ export default function MyListingsPage() {
               <Alert>
                 <AlertTitle className="flex items-center gap-2">
                   <ShieldAlert className="h-4 w-4" />
-                  Verification Required
+                  Landlord Tools Locked
                 </AlertTitle>
                 <AlertDescription>
-                  Complete the landlord verification process to unlock listing management features.
+                  Update your profile to select landlord and start creating property listings.
                 </AlertDescription>
               </Alert>
             )}

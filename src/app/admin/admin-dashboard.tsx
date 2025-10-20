@@ -9,6 +9,8 @@ import { UsersManagementTable } from './users-table';
 import { ListingsManagementTable } from './listings-table';
 import { PaymentSettingsPanel } from './payment-settings';
 import { LandlordApprovalsPanel } from './landlord-approvals';
+import { FeaturedPropertiesAdminPanel } from './featured-properties-panel';
+import { VacantPaymentsPanel } from './vacant-payments';
 import { Users, Home, TrendingUp, MapPin, Building2, Activity, DollarSign } from 'lucide-react';
 import { type AdminStats } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -169,8 +171,9 @@ export function AdminDashboard() {
         </Card>
       </div>
 
-      <div className="mb-8">
+      <div className="grid gap-4 mb-8">
         <LandlordApprovalsPanel />
+        <FeaturedPropertiesAdminPanel />
       </div>
 
       {/* Breakdown Cards */}
@@ -225,6 +228,10 @@ export function AdminDashboard() {
             <Home className="mr-2 h-4 w-4" />
             Listings Management
           </TabsTrigger>
+          <TabsTrigger value="vacancy">
+            <DollarSign className="mr-2 h-4 w-4" />
+            Vacant Listing Payments
+          </TabsTrigger>
           <TabsTrigger value="payments">
             <DollarSign className="mr-2 h-4 w-4" />
             Payment Settings
@@ -237,6 +244,10 @@ export function AdminDashboard() {
 
         <TabsContent value="listings" className="space-y-4">
           <ListingsManagementTable />
+        </TabsContent>
+
+        <TabsContent value="vacancy" className="space-y-4">
+          <VacantPaymentsPanel />
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4">

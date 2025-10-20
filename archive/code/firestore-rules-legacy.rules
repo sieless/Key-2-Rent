@@ -1,0 +1,85 @@
+/**
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a user-ownership model for user profiles and listings, with public read access for listings.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profiles.
+ * - /listings/{listingId}: Stores rental property listings with a denormalized userId field.
+ * - /rental_types/{rentalTypeId}: Stores categories of rental options.
+ *
+ * Key Security Decisions:
+ * - Users can only read and write their own profiles.
+ * - Listings are publicly readable, but only the owner can create, update, or delete them.
+ * - Listing ownership is determined by the `userId` field on the listing document.
+ * - Rental types are publicly readable. Write operations are not permitted.
+ *
+ * Denormalization for Authorization:
+ * - The `listings` collection denormalizes the `userId` to avoid costly `get()` calls when checking listing ownership.
+ *
+ * Structural Segregation:
+ * - Public listings are stored in a top-level collection, while private user data is stored under `/users/{userId}`.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Manages user profiles, ensuring only the authenticated user can access their own data.
+     * @path /users/{userId}
+     * @allow (create) - Authenticated user with matching UID can create their profile.
+     * @allow (get, update, delete) - Authenticated user can access their own profile.
+     * @deny (create) - Unauthenticated user attempting to create a profile.
+     * @deny (get, update, delete) - Authenticated user attempting to access another user's profile.
+     * @principle Enforces document ownership for user profiles.
+     */
+    match /users/{userId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    /**
+     * @description Manages rental property listings with public read access and owner-only writes.
+     * @path /listings/{listingId}
+     * @allow (get, list) - Anyone can read listings.
+     * @allow (create) - Authenticated user can create a listing with their UID as the userId.
+     * @allow (update, delete) - Only the owner of the listing can update or delete it.
+     * @deny (create) - Authenticated user creating a listing with a mismatched userId.
+     * @deny (update, delete) - Non-owner attempting to update or delete a listing.
+     * @principle Enforces document ownership for writes, allows public reads for listings.
+     */
+    match /listings/{listingId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner() {
+        return request.auth.uid == resource.data.userId;
+      }
+
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    /**
+     * @description Manages rental types with public read access. Write operations are not permitted.
+     * @path /rental_types/{rentalTypeId}
+     * @allow (get, list) - Anyone can read rental types.
+     * @deny (create, update, delete) - No one can create, update, or delete rental types.
+     * @principle Provides public read access to rental type categories.
+     */
+    match /rental_types/{rentalTypeId} {
+      allow get: if true;
+      allow list: if true;
+    }
+  }
+}

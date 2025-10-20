@@ -16,23 +16,18 @@ import { useFirestore, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { analyzeListingImage } from '@/app/actions';
 import { ImageUpload } from '@/components/image-upload';
+import { useCurrentUserProfile } from '@/hooks/use-user-profile';
+import { getVacancyPaymentAmount } from '@/lib/vacancy-payments';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
+  FormDescription,
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -65,6 +60,9 @@ const listingSchema = z.object({
     .array(z.string())
     .min(1, 'At least one image is required.'),
   features: z.array(z.string()).optional(),
+  status: z.enum(['Vacant', 'Occupied', 'Available Soon'], {
+    required_error: 'Please select the availability status.',
+  }),
   totalUnits: z.coerce.number().min(1, 'Total units must be at least 1.'),
   availableUnits: z.coerce.number().min(0, 'Available units cannot be negative.'),
 }).refine((data) => {
@@ -76,13 +74,14 @@ const listingSchema = z.object({
 });
 
 type AddListingModalProps = {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+  renderInline?: boolean;
 };
 
 type ListingData = z.infer<typeof listingSchema>;
 
-export function AddListingModal({ isOpen, onClose }: AddListingModalProps) {
+export function AddListingModal({ isOpen = false, onClose, renderInline = false }: AddListingModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAnalyzing, startTransition] = useTransition();
   const [analysisResult, setAnalysisResult] = useState<{
@@ -97,6 +96,8 @@ export function AddListingModal({ isOpen, onClose }: AddListingModalProps) {
   const { toast } = useToast();
   const { user } = useUser();
   const db = useFirestore();
+  const { profile } = useCurrentUserProfile();
+  const safeOnClose = onClose ?? (() => {});
 
   const form = useForm<ListingData>({
     resolver: zodResolver(listingSchema),
@@ -111,6 +112,7 @@ export function AddListingModal({ isOpen, onClose }: AddListingModalProps) {
       deposit: '',
       depositMonths: '',
       businessTerms: '',
+      status: 'Available Soon',
       totalUnits: 1,
       availableUnits: 1,
     },
@@ -163,11 +165,10 @@ export function AddListingModal({ isOpen, onClose }: AddListingModalProps) {
     setIsSubmitting(true);
 
     try {
-      const listingPayload: any = {
+      const listingPayload: Record<string, unknown> = {
         ...data,
         userId: user.uid,
         createdAt: serverTimestamp(),
-        status: 'pending_approval',
       };
 
       if (!listingPayload.name) delete listingPayload.name;
@@ -182,18 +183,32 @@ export function AddListingModal({ isOpen, onClose }: AddListingModalProps) {
         }
       });
 
-      const docRef = await addDoc(collection(db, 'listings'), listingPayload);
+      const isVacant = data.status === 'Vacant';
+      const priceValue = typeof listingPayload.price === 'number' ? listingPayload.price : Number(listingPayload.price ?? 0);
+      const computedAmount = isVacant ? getVacancyPaymentAmount(priceValue) : null;
+
+      listingPayload.approvalStatus = 'auto';
+      listingPayload.visibilityStatus = isVacant ? 'hidden' : 'visible';
+      listingPayload.paymentStatus = isVacant ? 'pending' : 'paid';
+      listingPayload.paymentMode = isVacant ? '10% Monthly Rent' : null;
+      listingPayload.amountDue = isVacant ? computedAmount : null;
+      listingPayload.proofUploadUrl = null;
+      listingPayload.confirmationText = null;
+
+      const listingRef = await addDoc(collection(db, 'listings'), listingPayload);
 
       const userRef = doc(db, 'users', user.uid);
-      updateDocumentNonBlocking(userRef, { listings: arrayUnion(docRef.id) });
+      updateDocumentNonBlocking(userRef, { listings: arrayUnion(listingRef.id) });
 
       toast({
-        title: 'Success!',
-        description: 'Your listing has been created successfully!',
+        title: isVacant ? 'Listing created - payment required' : 'Success!',
+        description: isVacant
+          ? 'Head to the payment steps to get your property live.'
+          : 'Your listing is live for renters to view!',
       });
 
       form.reset();
-      onClose();
+      safeOnClose();
     } catch (error) {
       console.error('Error adding document: ', error);
       toast({
@@ -206,24 +221,9 @@ export function AddListingModal({ isOpen, onClose }: AddListingModalProps) {
     }
   };
 
-  return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
-          <DialogHeader className="pr-6">
-            <DialogTitle className="text-2xl font-bold">
-              Add a New Rental Property
-            </DialogTitle>
-            <DialogDescription>
-              Fill in the details below to post your property.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-grow overflow-y-auto pr-6 pl-6 -mr-6">
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-6"
-              >
+  const formContent = (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                  <FormField
                     control={form.control}
                     name="name"
@@ -301,6 +301,32 @@ export function AddListingModal({ isOpen, onClose }: AddListingModalProps) {
                     )}
                   />
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Availability</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select property availability" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Vacant">Vacant</SelectItem>
+                          <SelectItem value="Occupied">Occupied</SelectItem>
+                          <SelectItem value="Available Soon">Available Soon</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription className="text-xs text-muted-foreground">
+                        Vacant listings require proof of payment before they appear publicly.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
@@ -560,35 +586,21 @@ export function AddListingModal({ isOpen, onClose }: AddListingModalProps) {
                             key={item}
                             control={form.control}
                             name="features"
-                            render={({ field }) => {
-                              return (
-                                <FormItem
-                                  key={item}
-                                  className="flex flex-row items-start space-x-3 space-y-0"
-                                >
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={field.value?.includes(item)}
-                                      onCheckedChange={checked => {
-                                        return checked
-                                          ? field.onChange([
-                                              ...(field.value || []),
-                                              item,
-                                            ])
-                                          : field.onChange(
-                                              (field.value || []).filter(
-                                                value => value !== item
-                                              )
-                                            );
-                                      }}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="text-sm font-normal">
-                                    {item}
-                                  </FormLabel>
-                                </FormItem>
-                              );
-                            }}
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value?.includes(item)}
+                                    onCheckedChange={checked =>
+                                      checked
+                                        ? field.onChange([...(field.value || []), item])
+                                        : field.onChange((field.value || []).filter(value => value !== item))
+                                    }
+                                  />
+                                </FormControl>
+                                <FormLabel className="text-sm font-normal">{item}</FormLabel>
+                              </FormItem>
+                            )}
                           />
                         ))}
                       </div>
@@ -596,24 +608,47 @@ export function AddListingModal({ isOpen, onClose }: AddListingModalProps) {
                     </FormItem>
                   )}
                 />
-                <DialogFooter className="pt-6 mt-6 border-t -mb-6 pb-6 -mx-6 px-6 bg-background sticky bottom-0 z-10">
-                  <DialogClose asChild>
-                    <Button type="button" variant="outline">
-                      Cancel
-                    </Button>
-                  </DialogClose>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : 'Post Listing'}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
+        <div className="pt-6 mt-6 border-t -mb-6 pb-6 -mx-6 px-6 bg-background sticky bottom-0 z-10 flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
+          {renderInline ? null : (
+            <DialogClose asChild>
+              <Button type="button" variant="outline" onClick={() => form.reset()}>
+                Cancel
+              </Button>
+            </DialogClose>
+          )}
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Post Listing'}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+
+  if (renderInline) {
+    return (
+      <div className="max-w-4xl mx-auto w-full">
+        <div className="rounded-xl border bg-card shadow-sm">
+          <div className="border-b px-6 py-5">
+            <h2 className="text-2xl font-bold">Create a New Listing</h2>
+            <p className="text-sm text-muted-foreground">
+              Listings marked Vacant will guide you through payment proof before going live.
+            </p>
           </div>
-        </DialogContent>
-      </Dialog>
-      
-    </>
+          <div className="max-h-[80vh] overflow-y-auto px-6 py-6">{formContent}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={safeOnClose}>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col" onInteractOutside={event => event.preventDefault()}>
+        <DialogHeader className="pr-6">
+          <DialogTitle className="text-2xl font-bold">Add a New Rental Property</DialogTitle>
+          <DialogDescription>Fill in the details below to post your property.</DialogDescription>
+        </DialogHeader>
+        <div className="flex-grow overflow-y-auto pr-6 pl-6 -mr-6">{formContent}</div>
+      </DialogContent>
+    </Dialog>
   );
 }

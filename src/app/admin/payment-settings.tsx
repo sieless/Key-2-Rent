@@ -418,24 +418,24 @@ export function PaymentSettingsPanel() {
                 <AlertCircle className="h-5 w-5 text-yellow-500" />
                 {confirmDialog.action ? 'Activate' : 'Deactivate'} {confirmDialog.featureName}?
               </AlertDialogTitle>
-              <AlertDialogDescription className="space-y-2">
-                {confirmDialog.action ? (
-                  <>
-                    <p>
-                      This will immediately enable <strong>{confirmDialog.featureName}</strong> for
-                      all users.
-                    </p>
-                    <p className="text-yellow-600 dark:text-yellow-500 font-medium">
-                      ⚠️ This may affect user experience. Make sure payment systems are ready.
-                    </p>
-                  </>
-                ) : (
-                  <p>
-                    This will make <strong>{confirmDialog.featureName}</strong> free again for all
-                    users.
-                  </p>
-                )}
-              </AlertDialogDescription>
+          <AlertDialogDescription className="space-y-2">
+            {confirmDialog.action ? (
+              <div className="space-y-2">
+                <p>
+                  This will immediately enable <strong>{confirmDialog.featureName}</strong> for
+                  all users.
+                </p>
+                <p className="text-yellow-600 dark:text-yellow-500 font-medium">
+                  ⚠️ This may affect user experience. Make sure payment systems are ready.
+                </p>
+              </div>
+            ) : (
+              <p>
+                This will make <strong>{confirmDialog.featureName}</strong> free again for all
+                users.
+              </p>
+            )}
+          </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>

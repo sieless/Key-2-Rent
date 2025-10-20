@@ -10,14 +10,12 @@ import Link from 'next/link';
 
 type CategorizedListingGridProps = {
   listings: Listing[];
-  isSubscribed: boolean;
   showCategories?: boolean;
   maxPerCategory?: number;
 };
 
 export function CategorizedListingGrid({
   listings,
-  isSubscribed,
   showCategories = true,
   maxPerCategory = 6,
 }: CategorizedListingGridProps) {
@@ -83,7 +81,7 @@ export function CategorizedListingGrid({
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {listings.map((listing) => (
-          <ListingCard key={listing.id} listing={listing} isSubscribed={isSubscribed} />
+          <ListingCard key={listing.id} listing={listing} />
         ))}
       </div>
     );
@@ -149,7 +147,7 @@ export function CategorizedListingGrid({
             {/* Category Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {displayListings.map((listing) => (
-                <ListingCard key={listing.id} listing={listing} isSubscribed={isSubscribed} />
+                <ListingCard key={listing.id} listing={listing} />
               ))}
             </div>
 

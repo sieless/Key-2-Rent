@@ -28,7 +28,7 @@ import {
   CalendarClock,
   Briefcase,
   FileText,
-  Lock,
+  Copy,
   MessageCircle,
   Share2
 } from 'lucide-react';
@@ -39,7 +39,6 @@ import { AddListingModal } from '@/components/add-listing-modal';
 import { useToast } from '@/hooks/use-toast';
 import { getPropertyIcon, getStatusClass } from '@/lib/utils';
 import { DefaultPlaceholder } from '@/components/default-placeholder';
-import { useFeatureEnabled } from '@/hooks/use-platform-settings';
 
 
 function ListingDetailSkeleton() {
@@ -81,7 +80,6 @@ function ListingDetailSkeleton() {
 
 export default function ListingDetailPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const db = useFirestore();
   const params = useParams();
@@ -89,7 +87,6 @@ export default function ListingDetailPage() {
   const { id } = params;
   const { toast } = useToast();
   const { user, isUserLoading } = useUser();
-  const contactPaymentEnabled = useFeatureEnabled('contact');
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -231,6 +228,25 @@ export default function ListingDetailPage() {
                       </div>
                     )}
                 </div>
+                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                  <span className="font-mono">{listing.adminListingId ?? listing.id}</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(listing.adminListingId ?? listing.id);
+                        toast({ title: 'Copied!', description: 'Property ID copied to clipboard.' });
+                      } catch {
+                        toast({ title: 'Copy failed', description: 'Try again.', variant: 'destructive' });
+                      }
+                    }}
+                    className="h-7 px-2"
+                  >
+                    <Copy className="h-3.5 w-3.5" /> Copy ID
+                  </Button>
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground mb-6 border-b pb-6">
                 <p className="font-semibold flex items-center gap-2">
@@ -244,6 +260,14 @@ export default function ListingDetailPage() {
                   <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
                     <MapPin className="mr-1 h-4 w-4" /> View on Map
                   </a>
+                </Button>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="p-0 h-auto"
+                  onClick={() => router.push('/payment-info')}
+                >
+                  Learn how Featured Listings work
                 </Button>
               </div>
 
@@ -282,49 +306,26 @@ export default function ListingDetailPage() {
                       <Briefcase className="mr-2 h-5 w-5 text-primary" /> Contact Landlord
                     </h3>
                     {/* FEATURE FLAG: Show payment gate if admin enabled contact payments */}
-                    {!user ? (
-                      // Not logged in - prompt to sign in
+                    <div className="space-y-2">
                       <Button
-                        onClick={() => router.push('/signup')}
-                        className="w-full text-lg"
-                        variant="default"
+                        asChild
+                        variant="secondary"
+                        className="w-full text-lg font-semibold text-green-600 hover:text-green-700"
                       >
-                        <Phone className="mr-2 h-5 w-5" />
-                        Sign in to view contact
+                        <a href={`tel:${listing.contact}`}>
+                          <Phone className="mr-2 h-5 w-5" />
+                          {listing.contact}
+                        </a>
                       </Button>
-                    ) : contactPaymentEnabled ? (
-                      // Logged in but contact payment is enabled
                       <Button
-                        onClick={() => setShowPaymentModal(true)}
-                        className="w-full text-lg"
-                        variant="default"
+                        onClick={handleWhatsApp}
+                        variant="outline"
+                        className="w-full"
                       >
-                        <Lock className="mr-2 h-5 w-5" />
-                        Unlock Contact - KES 100
+                        <MessageCircle className="mr-2 h-4 w-4" />
+                        Message on WhatsApp
                       </Button>
-                    ) : (
-                      // Logged in and FREE MODE: Show contact directly with WhatsApp option
-                      <div className="space-y-2">
-                        <Button
-                          asChild
-                          variant="secondary"
-                          className="w-full text-lg font-semibold text-green-600 hover:text-green-700"
-                        >
-                          <a href={`tel:${listing.contact}`}>
-                            <Phone className="mr-2 h-5 w-5" />
-                            {listing.contact}
-                          </a>
-                        </Button>
-                        <Button
-                          onClick={handleWhatsApp}
-                          variant="outline"
-                          className="w-full"
-                        >
-                          <MessageCircle className="mr-2 h-4 w-4" />
-                          Message on WhatsApp
-                        </Button>
-                      </div>
-                    )}
+                    </div>
 
                     {/* Share Button */}
                     <Button
@@ -350,34 +351,7 @@ export default function ListingDetailPage() {
         />
       )}
 
-      {/* Payment Modal - Future: Replace with actual M-Pesa integration */}
-      {showPaymentModal && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          onClick={() => setShowPaymentModal(false)}
-        >
-          <div
-            className="bg-background p-8 rounded-lg max-w-md w-full mx-4 border shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-2xl font-bold mb-3">Contact Payment</h3>
-            <p className="text-muted-foreground mb-4">
-              Pay KES 100 to unlock this landlord's contact information and connect directly.
-            </p>
-            <p className="text-sm text-muted-foreground mb-6 p-3 bg-muted rounded">
-              🚧 <strong>Coming Soon:</strong> M-Pesa STK Push integration will be activated here. You'll receive a prompt on your phone to complete the payment.
-            </p>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setShowPaymentModal(false)} className="flex-1">
-                Cancel
-              </Button>
-              <Button className="flex-1" disabled>
-                Pay with M-Pesa (Soon)
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Payment modal removed per free contact access */}
     </div>
   );
 }
