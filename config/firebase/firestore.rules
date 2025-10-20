@@ -39,9 +39,53 @@ service cloud.firestore {
       allow read, create, update: if request.auth != null;
     }
 
-    // ✅ FALLBACK (allow authenticated reads)
+    // ✅ PLATFORM SETTINGS
+    match /platform_settings/{settingId} {
+      allow read: if true; // Public read for platform settings
+      allow write: if request.auth != null; // Admin can write
+    }
+
+    // ✅ FEATURED PROPERTIES
+    match /featured_properties/{propertyId} {
+      allow read: if true; // Public read
+      allow write: if request.auth != null; // Authenticated write
+    }
+
+    // ✅ CONVERSATIONS
+    match /conversations/{conversationId} {
+      allow read, write: if request.auth != null &&
+        request.auth.uid in resource.data.participants;
+      allow create: if request.auth != null;
+    }
+
+    // ✅ MESSAGES
+    match /messages/{messageId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ✅ AGREEMENTS
+    match /agreements/{agreementId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ✅ TRANSACTIONS
+    match /transactions/{transactionId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ✅ RATE LIMITING
+    match /rate_limits/{limitId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ✅ ERROR LOGS
+    match /error_logs/{errorId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ✅ FALLBACK (allow authenticated reads for any other collections)
     match /{document=**} {
-      allow read: if request.auth != null;
+      allow read, write: if request.auth != null;
     }
   }
 }
