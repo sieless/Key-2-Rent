@@ -23,6 +23,10 @@ type VacantPaymentRecord = {
   listingName?: string;
   name?: string;
   landlordName?: string;
+  type?: string;
+  location?: string;
+  price?: number;
+  amountDue?: number | null;
   createdAt?: any;
 };
 
@@ -158,10 +162,11 @@ export function VacantPaymentsPanel() {
               <TableRow>
                 <TableHead>Listing</TableHead>
                 <TableHead>Landlord</TableHead>
+                <TableHead>Property Details</TableHead>
                 <TableHead>Amount (KES)</TableHead>
+                <TableHead>Payment Proof</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Visibility</TableHead>
-                <TableHead>Proof</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -179,12 +184,22 @@ export function VacantPaymentsPanel() {
                   </TableCell>
                 </TableRow>
               ) : (
-                records.map((record) => (
+                records.map((record) => {
+                  const amountPaid = typeof record.amountDue === 'number' ? record.amountDue : record.amount;
+                  const amountDisplay = typeof amountPaid === 'number' ? amountPaid.toLocaleString() : '—';
+                  const submittedDate = record.createdAt?.toDate?.() ? record.createdAt.toDate().toLocaleString() : null;
+
+                  return (
                   <TableRow key={record.id}>
                     <TableCell className="font-medium">
                       <div className="flex flex-col">
                         <span>{record.name || record.listingName || "Untitled listing"}</span>
                         <span className="text-xs text-muted-foreground">{record.listingId}</span>
+                        {submittedDate && (
+                          <span className="text-xs text-muted-foreground">
+                            Submitted {submittedDate}
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -193,17 +208,18 @@ export function VacantPaymentsPanel() {
                         <span className="text-xs text-muted-foreground">{record.userId}</span>
                       </div>
                     </TableCell>
-                    <TableCell>{record.amount?.toLocaleString()}</TableCell>
-                    <TableCell>{statusBadge(record.paymentStatus)}</TableCell>
                     <TableCell>
-                      <Badge variant={record.visibilityStatus === "visible" ? "default" : "outline"}>
-                        {record.visibilityStatus === "visible" ? "Visible" : "Hidden"}
-                      </Badge>
+                      <div className="space-y-1 text-sm text-muted-foreground">
+                        <div>Type: <span className="font-semibold text-foreground">{record.type || 'Unknown'}</span></div>
+                        <div>Location: <span className="font-semibold text-foreground">{record.location || 'Unknown'}</span></div>
+                        <div>Price: <span className="font-semibold text-foreground">Ksh {record.price?.toLocaleString() ?? '0'}</span></div>
+                      </div>
                     </TableCell>
+                    <TableCell className="font-semibold">{amountDisplay}</TableCell>
                     <TableCell>
                       <div className="space-y-2">
                         {record.confirmationText && (
-                          <p className="text-xs text-muted-foreground border rounded p-2 bg-muted/40">
+                          <p className="text-xs text-muted-foreground border rounded p-2 bg-muted/40 whitespace-pre-wrap">
                             {record.confirmationText}
                           </p>
                         )}
@@ -220,9 +236,15 @@ export function VacantPaymentsPanel() {
                         )}
                       </div>
                     </TableCell>
+                    <TableCell>{statusBadge(record.paymentStatus)}</TableCell>
+                    <TableCell>
+                      <Badge variant={record.visibilityStatus === "visible" ? "default" : "outline"}>
+                        {record.visibilityStatus === "visible" ? "Visible" : "Hidden"}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-right">{actionButtons(record)}</TableCell>
                   </TableRow>
-                ))
+                )})
               )}
             </TableBody>
           </Table>

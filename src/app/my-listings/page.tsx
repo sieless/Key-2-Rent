@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
-import { MapPin, PlusCircle, Loader2, Hourglass, CheckCircle2, XCircle, BarChart3, LayoutGrid, Minus, Plus, Building2, ShieldAlert } from 'lucide-react';
+import { MapPin, PlusCircle, Loader2, Hourglass, CheckCircle2, XCircle, BarChart3, LayoutGrid, Minus, Plus, Building2, ShieldAlert, Phone } from 'lucide-react';
 import { DeleteListingDialog } from '@/components/delete-listing-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +43,7 @@ import { DefaultPlaceholder } from '@/components/default-placeholder';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LandlordAnalytics } from './analytics';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { VacancyPaymentModal } from '@/components/vacancy-payment-modal';
 
 function ListingSkeleton() {
   return (
@@ -93,6 +94,7 @@ export default function MyListingsPage() {
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [updatingUnitsId, setUpdatingUnitsId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [paymentModalListing, setPaymentModalListing] = useState<Listing | null>(null);
 
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
@@ -400,6 +402,7 @@ export default function MyListingsPage() {
                     const availableUnits = listing.availableUnits ?? 0;
                     const isMultiUnit = totalUnits > 1;
                     const awaitingApproval = listing.status === 'Vacant' && listing.approvalStatus === 'pending';
+                    const requiresVacancyPayment = listing.status === 'Vacant' && listing.paymentStatus !== 'paid';
                     const isRejectedApproval = listing.approvalStatus === 'rejected';
                     const canAdjustUnits = !awaitingApproval && !isRejectedApproval;
                     const canToggleStatus = ['Vacant', 'Occupied'].includes(listing.status) && !awaitingApproval && !isRejectedApproval;
@@ -480,6 +483,22 @@ export default function MyListingsPage() {
                   )}
                 </CardHeader>
                 <CardFooter className="border-t p-4 mt-auto flex flex-col gap-3">
+                  {requiresVacancyPayment && (
+                    <div className="w-full rounded-md border border-primary/30 bg-primary/5 p-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="flex items-center gap-2 text-sm font-medium text-primary">
+                          <Phone className="h-4 w-4" /> Payment required to unlock contact button
+                        </span>
+                        <Button
+                          size="sm"
+                          onClick={() => setPaymentModalListing(listing)}
+                          className="w-full sm:w-auto"
+                        >
+                          Submit payment proof
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                   {/* Multi-unit controls */}
                   {isMultiUnit ? (
                     <div className="flex items-center justify-between w-full gap-2">
@@ -586,6 +605,22 @@ export default function MyListingsPage() {
         <AddListingModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
+        />
+      )}
+      {paymentModalListing && (
+        <VacancyPaymentModal
+          open={Boolean(paymentModalListing)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setPaymentModalListing(null);
+            }
+          }}
+          propertyType={paymentModalListing.type}
+          monthlyRent={paymentModalListing.price}
+          listingStatus={paymentModalListing.status}
+          listingReference={paymentModalListing.name || paymentModalListing.location}
+          onPaymentConfirmed={async () => ({ redirectUrl: `/payments/vacancy/${paymentModalListing.id}` })}
+          successRedirectUrl={`/payments/vacancy/${paymentModalListing.id}`}
         />
       )}
     </div>

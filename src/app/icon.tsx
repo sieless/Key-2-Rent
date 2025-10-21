@@ -22,8 +22,7 @@ export default function Icon() {
           borderRadius: '6px',
         }}
       >
-        {/* Simplified Key-2-Rent Logo */}
-        <div
+        <span
           style={{
             width: '24px',
             height: '24px',
@@ -32,11 +31,14 @@ export default function Icon() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '16px',
+            fontSize: '12px',
+            fontWeight: 700,
+            color: '#2563eb',
+            fontFamily: 'sans-serif',
           }}
         >
-          🏠
-        </div>
+          K2
+        </span>
       </div>
     ),
     {

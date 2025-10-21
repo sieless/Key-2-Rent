@@ -128,8 +128,7 @@ export function ListingsView() {
         const typeMatch = filters.type === 'All' || listing.type === filters.type;
         const priceMatch = listing.price <= filters.maxPrice;
         const statusMatch = filters.status === 'All' || listing.status === filters.status;
-        const visibilityMatch = listing.visibilityStatus !== 'hidden';
-        return locationMatch && typeMatch && priceMatch && statusMatch && visibilityMatch;
+        return locationMatch && typeMatch && priceMatch && statusMatch;
     });
     return filtered;
   }, [listings, filters]);

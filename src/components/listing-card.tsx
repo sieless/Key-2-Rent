@@ -34,8 +34,7 @@ export function ListingCard({ listing }: ListingCardProps) {
   const isContactable = Boolean(user && user.uid !== listing.userId);
   const isOwner = user?.uid === listing.userId;
   const paymentCleared = listing.paymentStatus === 'paid';
-  const listingVisible = listing.visibilityStatus !== 'hidden';
-  const requiresPaymentConfirmation = listing.status === 'Vacant' && !paymentCleared && !listingVisible;
+  const requiresPaymentConfirmation = listing.status === 'Vacant' && !paymentCleared;
 
   const statusIconMap: Record<Listing['status'], ReactNode> = {
     Vacant: <CheckCircle2 className="mr-1.5 h-4 w-4" />,

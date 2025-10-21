@@ -22,8 +22,7 @@ export default function AppleIcon() {
           borderRadius: '36px',
         }}
       >
-        {/* Key-2-Rent Logo - Larger for Apple Touch Icon */}
-        <div
+        <span
           style={{
             width: '120px',
             height: '120px',
@@ -32,11 +31,15 @@ export default function AppleIcon() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '80px',
+            fontSize: '54px',
+            fontWeight: 700,
+            color: '#2563eb',
+            fontFamily: 'sans-serif',
+            letterSpacing: '-2px',
           }}
         >
-          🏠
-        </div>
+          K2
+        </span>
       </div>
     ),
     {
