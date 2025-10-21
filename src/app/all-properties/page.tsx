@@ -121,7 +121,8 @@ export default function AllPropertiesPage() {
       const statusMatch = filters.status === 'All'
         ? true
         : listing.status === filters.status;
-      return locationMatch && typeMatch && priceMatch && statusMatch;
+      const visibilityMatch = listing.visibilityStatus !== 'hidden';
+      return locationMatch && typeMatch && priceMatch && statusMatch && visibilityMatch;
     });
 
     return filtered.sort((a, b) => {

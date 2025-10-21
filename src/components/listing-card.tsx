@@ -32,6 +32,10 @@ export function ListingCard({ listing }: ListingCardProps) {
   const { startConversation, loading: startingConversation } = useStartConversation();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const isContactable = Boolean(user && user.uid !== listing.userId);
+  const isOwner = user?.uid === listing.userId;
+  const paymentCleared = listing.paymentStatus === 'paid';
+  const listingVisible = listing.visibilityStatus !== 'hidden';
+  const requiresPaymentConfirmation = listing.status === 'Vacant' && !paymentCleared && !listingVisible;
 
   const statusIconMap: Record<Listing['status'], ReactNode> = {
     Vacant: <CheckCircle2 className="mr-1.5 h-4 w-4" />,
@@ -65,16 +69,26 @@ export function ListingCard({ listing }: ListingCardProps) {
       return;
     }
 
-    if (listing.status === 'Vacant') {
+    if (requiresPaymentConfirmation && isOwner) {
       setShowPaymentModal(true);
       return;
     }
+
+    if (requiresPaymentConfirmation) {
+      toast({
+        title: 'Payment pending',
+        description: 'This listing is waiting for payment verification before contacts can be shared.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     window.location.href = `tel:${listing.contact}`;
   };
 
   const renderContactButton = () => {
-    if (listing.status === 'Vacant') {
-      if (user && user.uid === listing.userId) {
+    if (requiresPaymentConfirmation) {
+      if (isOwner) {
         return (
           <Button
             onClick={(e) => {
@@ -98,7 +112,7 @@ export function ListingCard({ listing }: ListingCardProps) {
           className="flex-1 font-semibold"
         >
           <Phone className="mr-2 h-4 w-4" />
-          Pending
+          Pending Verification
         </Button>
       );
     }
