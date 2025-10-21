@@ -62,6 +62,30 @@ function ListingSkeleton() {
   );
 }
 
+function StatusLegend() {
+  const statusItems: Array<{ label: string; status: Listing['status'] }> = [
+    { label: 'Vacant', status: 'Vacant' },
+    { label: 'Available Soon', status: 'Available Soon' },
+    { label: 'Occupied', status: 'Occupied' },
+  ];
+
+  return (
+    <div className="mb-6 space-y-2">
+      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Availability key</p>
+      <div className="flex flex-wrap gap-2">
+        {statusItems.map(item => (
+          <Badge
+            key={item.status}
+            className={cn('text-xs font-semibold px-3 py-1', getStatusClass(item.status))}
+          >
+            {item.label}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 
 export default function MyListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
@@ -150,7 +174,7 @@ export default function MyListingsPage() {
   const handleToggleAvailability = async (listing: Listing) => {
     if (!db) return;
 
-    if (listing.status === 'Available Soon') {
+    if (listing.approvalStatus === 'pending') {
       toast({
         title: 'Pending review',
         description: 'This listing is awaiting admin approval before it can go live.',
@@ -158,7 +182,7 @@ export default function MyListingsPage() {
       return;
     }
 
-    if (listing.status === 'Occupied') {
+    if (listing.approvalStatus === 'rejected') {
       toast({
         variant: 'destructive',
         title: 'Listing rejected',
@@ -368,18 +392,20 @@ export default function MyListingsPage() {
                 ))}
               </div>
             ) : listings.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {listings.map(listing => {
-              const totalUnits = listing.totalUnits ?? 1;
-              const availableUnits = listing.availableUnits ?? 0;
-              const isMultiUnit = totalUnits > 1;
-              const isPendingStatus = listing.status === 'Available Soon';
-              const isRejectedStatus = listing.status === 'Occupied';
-              const canAdjustUnits = !isPendingStatus && !isRejectedStatus;
-              const canToggleStatus = ['Vacant', 'Occupied'].includes(listing.status);
+              <>
+                <StatusLegend />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {listings.map(listing => {
+                    const totalUnits = listing.totalUnits ?? 1;
+                    const availableUnits = listing.availableUnits ?? 0;
+                    const isMultiUnit = totalUnits > 1;
+                    const awaitingApproval = listing.status === 'Vacant' && listing.approvalStatus === 'pending';
+                    const isRejectedApproval = listing.approvalStatus === 'rejected';
+                    const canAdjustUnits = !awaitingApproval && !isRejectedApproval;
+                    const canToggleStatus = ['Vacant', 'Occupied'].includes(listing.status) && !awaitingApproval && !isRejectedApproval;
 
-              return (
-              <Card key={listing.id} className="overflow-hidden flex flex-col h-full">
+                    return (
+                    <Card key={listing.id} className="overflow-hidden flex flex-col h-full">
                 <Link href={`/listings/${listing.id}`} className="block">
                   <div className="relative w-full h-56 flex-shrink-0 overflow-hidden bg-muted">
                     {listing.images && listing.images.length > 0 ? (
@@ -423,9 +449,19 @@ export default function MyListingsPage() {
                       {getPropertyIcon(listing.type)} {listing.type}
                     </p>
                   </div>
-                  {listing.status === 'Available Soon' && (
+                  {awaitingApproval && (
                     <p className="mt-3 flex items-center gap-2 text-sm font-medium text-amber-600">
                       <Hourglass className="h-4 w-4" /> Awaiting admin approval
+                    </p>
+                  )}
+                  {isRejectedApproval && (
+                    <p className="mt-3 flex items-center gap-2 text-sm font-medium text-destructive">
+                      <ShieldAlert className="h-4 w-4" /> Listing requires updates
+                      {listing.adminFeedback ? (
+                        <span className="block text-xs font-normal text-destructive/80">
+                          {listing.adminFeedback}
+                        </span>
+                      ) : null}
                     </p>
                   )}
                   {listing.status === 'Occupied' && (
@@ -521,9 +557,10 @@ export default function MyListingsPage() {
                   )}
                 </CardFooter>
               </Card>
-              );
-            })}
-          </div>
+                    );
+                  })}
+                </div>
+              </>
             ) : (
               <div className="text-center py-20 bg-card rounded-xl border border-dashed">
                 <h2 className="text-xl font-semibold text-foreground">
