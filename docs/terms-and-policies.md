@@ -166,8 +166,7 @@ By accessing any publicly available page on Timelaine without logging in, you ag
 - Users must cooperate with investigations and follow instructions to secure their accounts.
 
 # Contact Information
-- Terms & General Support: support@timelaine.com
-- Privacy Requests: privacy@timelaine.com
-- Security Concerns: security@timelaine.com
-
-These documents do not constitute legal advice. Consult qualified counsel to determine how these policies apply to your circumstances.
+- Terms & General Support: 
+- Privacy Requests:
+- Security Concerns:
+support@timelaine.com
