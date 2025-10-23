@@ -39,6 +39,7 @@ import { AddListingModal } from '@/components/add-listing-modal';
 import { useToast } from '@/hooks/use-toast';
 import { getPropertyIcon, getStatusClass } from '@/lib/utils';
 import { DefaultPlaceholder } from '@/components/default-placeholder';
+import { getListingWhatsAppLink } from '@/lib/whatsapp';
 
 
 function ListingDetailSkeleton() {
@@ -111,8 +112,16 @@ export default function ListingDetailPage() {
   };
 
   const handleWhatsApp = () => {
-    const message = `Hi, I'm interested in your ${listing?.type} in ${listing?.location} listed at KES ${listing?.price.toLocaleString()}/month on Timelaine.`;
-    const whatsappUrl = `https://wa.me/${listing?.contact.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`;
+    if (!listing) return;
+    const whatsappUrl = getListingWhatsAppLink(listing);
+    if (!whatsappUrl) {
+      toast({
+        title: 'Contact unavailable',
+        description: 'We could not prepare the WhatsApp message right now. Please call the landlord instead.',
+        variant: 'destructive',
+      });
+      return;
+    }
     window.open(whatsappUrl, '_blank');
   };
 

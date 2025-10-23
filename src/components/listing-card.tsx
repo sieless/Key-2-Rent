@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { VacancyPaymentModal } from './vacancy-payment-modal';
-import { useStartConversation } from '@/hooks/use-start-conversation';
+import { getListingWhatsAppLink } from '@/lib/whatsapp';
 
 
 type ListingCardProps = {
@@ -29,7 +29,6 @@ export function ListingCard({ listing }: ListingCardProps) {
   const { toast } = useToast();
   const { user } = useUser();
   const router = useRouter();
-  const { startConversation, loading: startingConversation } = useStartConversation();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const isContactable = Boolean(user && user.uid !== listing.userId);
   const isOwner = user?.uid === listing.userId;
@@ -126,6 +125,27 @@ export function ListingCard({ listing }: ListingCardProps) {
         {user ? listing.contact : 'Sign in to view contact'}
       </Button>
     );
+  };
+
+  const handleWhatsApp = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isContactable) {
+      return;
+    }
+
+    const whatsappUrl = getListingWhatsAppLink(listing);
+    if (!whatsappUrl) {
+      toast({
+        title: 'Contact unavailable',
+        description: 'We could not prepare the WhatsApp message right now. Please call the landlord instead.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    window.open(whatsappUrl, '_blank');
   };
 
   return (
@@ -249,14 +269,10 @@ export function ListingCard({ listing }: ListingCardProps) {
               {/* Message Button */}
               {user && user.uid !== listing.userId && (
                 <Button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    startConversation(listing);
-                  }}
+                  onClick={handleWhatsApp}
                   variant="outline"
                   size="icon"
-                  disabled={startingConversation || !isContactable}
+                  disabled={!isContactable}
                   title="Message Landlord"
                 >
                   <MessageCircle className="h-4 w-4" />

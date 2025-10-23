@@ -46,6 +46,34 @@ import { Sparkles, Loader2, Wand2 } from 'lucide-react';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Textarea } from './ui/textarea';
 
+const KENYA_PHONE_REGEX = /^\+254\d{9}$/;
+
+const formatKenyanPhoneNumber = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+
+  const digits = trimmed.replace(/[^0-9]/g, '');
+  if (!digits) return trimmed;
+
+  if (digits.startsWith('254') && digits.length === 12) {
+    return `+${digits}`;
+  }
+
+  if (digits.startsWith('0') && digits.length === 10) {
+    return `+254${digits.slice(1)}`;
+  }
+
+  if (digits.length === 9) {
+    return `+254${digits}`;
+  }
+
+  if (trimmed.startsWith('+254') && digits.length === 12) {
+    return `+${digits}`;
+  }
+
+  return trimmed;
+};
+
 
 const listingSchema = z.object({
   name: z.string().optional(),
@@ -55,7 +83,13 @@ const listingSchema = z.object({
   deposit: z.coerce.number().optional().or(z.literal('')),
   depositMonths: z.coerce.number().optional().or(z.literal('')),
   businessTerms: z.string().optional(),
-  contact: z.string().min(10, 'A valid contact number is required.'),
+  contact: z
+    .string()
+    .min(10, 'A valid contact number is required.')
+    .transform(formatKenyanPhoneNumber)
+    .refine(value => KENYA_PHONE_REGEX.test(value), {
+      message: 'Enter a Kenyan phone number in the format +2547XXXXXXXX.',
+    }),
   images: z
     .array(z.string())
     .min(1, 'At least one image is required.'),
@@ -367,10 +401,14 @@ export function AddListingModal({ isOpen = false, onClose, renderInline = false 
                         <FormControl>
                           <Input
                             type="tel"
-                            placeholder="e.g. 0712345678"
+                            inputMode="tel"
+                            placeholder="e.g. +254712345678"
                             {...field}
                           />
                         </FormControl>
+                        <FormDescription className="text-xs text-muted-foreground">
+                          Must include the Kenyan country code, for example +254712345678.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
