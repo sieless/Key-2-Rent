@@ -20,9 +20,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Mail, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function SignupPage() {
   const [name, setName] = useState('');
@@ -32,6 +33,7 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<'renter' | 'landlord'>('renter');
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   const auth = useAuth();
   const db = useFirestore();
@@ -40,6 +42,14 @@ export default function SignupPage() {
 
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!acceptTerms) {
+      toast({
+        variant: 'destructive',
+        title: 'Terms not accepted',
+        description: 'Please review and agree to the Terms & Policies before creating an account.',
+      });
+      return;
+    }
     setIsLoading(true);
     try {
       if (!auth) {
@@ -160,6 +170,21 @@ export default function SignupPage() {
                       )}
                     </button>
                   </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-md border border-border bg-muted/20 p-3 text-sm">
+                  <Checkbox
+                    id="accept-terms"
+                    checked={acceptTerms}
+                    onCheckedChange={(value) => setAcceptTerms(value === true)}
+                    disabled={isLoading}
+                  />
+                  <Label htmlFor="accept-terms" className="text-left leading-6 text-muted-foreground">
+                    I agree to the{' '}
+                    <Link href="/legal/terms" className="underline underline-offset-4 hover:text-primary">
+                      Terms &amp; Policies
+                    </Link>
+                    .
+                  </Label>
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? 'Creating account...' : 'Create an account'}
