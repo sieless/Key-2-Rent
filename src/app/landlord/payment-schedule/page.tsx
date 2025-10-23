@@ -10,7 +10,7 @@ export default function LandlordGuidePage() {
         <p className="text-sm uppercase tracking-widest text-primary">Landlord Resource</p>
         <h1 className="text-4xl font-bold">Become a Confident Landlord</h1>
         <p className="text-muted-foreground max-w-3xl mx-auto">
-          Learn how Key-2-Rent listings work, what details you need, and when payments are required. Posting is free for occupied or soon-to-be available properties.
+          Learn how Timelaine listings work, what details you need, and when payments are required. Posting is free for occupied or soon-to-be available properties.
         </p>
       </header>
 

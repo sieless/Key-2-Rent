@@ -13,7 +13,7 @@
  * Future enhancement: Move to Firestore for cross-device sync
  */
 
-const FAVORITES_KEY = 'key2rent_favorites';
+const FAVORITES_KEY = 'timelaine_favorites';
 
 /**
  * Get all favorite listing IDs from localStorage

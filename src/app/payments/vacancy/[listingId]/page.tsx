@@ -26,7 +26,7 @@ export default function VacancyPaymentPage({ params }: VacancyPaymentPageProps) 
     () => [
       {
         label: 'Message on WhatsApp',
-        href: `https://wa.me/${SUPPORT_CONTACT}?text=${encodeURIComponent('Hi, I have submitted a vacancy listing on Key-2-Rent and would like to confirm payment for publishing.')}`,
+        href: `https://wa.me/${SUPPORT_CONTACT}?text=${encodeURIComponent('Hi, I have submitted a vacancy listing on Timelaine and would like to confirm payment for publishing.')}`,
         icon: MessageSquare,
       },
       {

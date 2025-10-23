@@ -183,7 +183,7 @@ export default function AdminPaymentsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `key2rent-payments-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `timelaine-payments-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
   };
 

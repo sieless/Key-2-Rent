@@ -1,12 +1,12 @@
 #!/bin/bash
 
 ###############################################################################
-# Key-2-Rent Documentation PDF Converter
+# Timelaine Documentation PDF Converter
 # Converts all markdown reports to PDF format
 ###############################################################################
 
 echo "================================================"
-echo "Key-2-Rent PDF Report Generator"
+echo "Timelaine PDF Report Generator"
 echo "================================================"
 echo ""
 

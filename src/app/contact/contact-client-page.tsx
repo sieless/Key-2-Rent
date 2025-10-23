@@ -58,7 +58,7 @@ export function ContactClientPage() {
               <Mail className="h-6 w-6 text-primary" />
               <div>
                 <h3 className="font-semibold">Email</h3>
-                <a href="mailto:key2rent@gmail.com" className="text-muted-foreground hover:text-primary transition-colors">key2rent@gmail.com</a>
+                <a href="mailto:timelaine@gmail.com" className="text-muted-foreground hover:text-primary transition-colors">timelaine@gmail.com</a>
               </div>
             </div>
             <div className="flex items-center gap-4">

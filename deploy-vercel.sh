@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Deploying Key-2-Rent to Vercel with Image Fixes"
+echo "🚀 Deploying Timelaine to Vercel with Image Fixes"
 echo "=================================================="
 
 # Step 1: Build the application

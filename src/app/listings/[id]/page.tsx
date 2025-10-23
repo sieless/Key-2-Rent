@@ -111,7 +111,7 @@ export default function ListingDetailPage() {
   };
 
   const handleWhatsApp = () => {
-    const message = `Hi, I'm interested in your ${listing?.type} in ${listing?.location} listed at KES ${listing?.price.toLocaleString()}/month on Key-2-Rent.`;
+    const message = `Hi, I'm interested in your ${listing?.type} in ${listing?.location} listed at KES ${listing?.price.toLocaleString()}/month on Timelaine.`;
     const whatsappUrl = `https://wa.me/${listing?.contact.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };

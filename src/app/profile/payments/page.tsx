@@ -105,7 +105,7 @@ export default function PaymentHistoryPage() {
 
   const downloadReceipt = (txn: Transaction) => {
     const receiptText = `
-KEY-2-RENT PAYMENT RECEIPT
+TIMELAINE PAYMENT RECEIPT
 =========================
 
 Receipt Number: ${txn.mpesaReceiptNumber || 'N/A'}
@@ -116,7 +116,7 @@ Type: ${getTypeLabel(txn.type)}
 Status: ${txn.status}
 Phone Number: ${txn.phoneNumber}
 
-Thank you for using Key-2-Rent!
+Thank you for using Timelaine!
     `.trim();
 
     const blob = new Blob([receiptText], { type: 'text/plain' });

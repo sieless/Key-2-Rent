@@ -49,7 +49,7 @@ export function useFavorites() {
 
     // Listen for storage changes (cross-tab sync)
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'key2rent_favorites') {
+      if (event.key === 'timelaine_favorites') {
         const updatedFavorites = getFavorites();
         setFavorites(updatedFavorites);
         setCount(updatedFavorites.length);

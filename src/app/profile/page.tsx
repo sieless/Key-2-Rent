@@ -50,7 +50,7 @@ export default function ProfilePage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">My Profile</h1>
-          <p className="text-muted-foreground">Manage how you appear on Key-2-Rent.</p>
+          <p className="text-muted-foreground">Manage how you appear on Timelaine.</p>
         </div>
         <Button asChild>
           <Link href="/profile/edit">Edit profile</Link>

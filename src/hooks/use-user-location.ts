@@ -124,7 +124,7 @@ async function reverseGeocode(lat: number, lon: number): Promise<string> {
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=en`,
       {
         headers: {
-          'User-Agent': 'Key2Rent-App',
+          'User-Agent': 'Timelaine-App',
         },
       }
     );

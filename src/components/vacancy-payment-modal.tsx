@@ -249,7 +249,7 @@ export function VacancyPaymentModal({
               value={proofText}
               onChange={event => setProofText(event.target.value)}
               maxLength={MAX_TEXT_LENGTH}
-              placeholder="e.g. Confirmed. QH12CD34J sent to Key-2-Rent till 6046866 at 12:45 PM"
+              placeholder="e.g. Confirmed. QH12CD34J sent to Timelaine till 6046866 at 12:45 PM"
               className="min-h-[120px]"
               disabled={isConfirming || isLoading}
             />

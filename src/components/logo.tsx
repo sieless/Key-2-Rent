@@ -7,7 +7,7 @@ interface LogoProps {
 }
 
 /**
- * Key2Rent Logo Component
+ * Timelaine Logo Component
  * - variant="full": Shows full logo with text (default)
  * - variant="icon": Shows icon only
  * Uses inline SVG for reliability
@@ -85,7 +85,7 @@ export function Logo({ variant = 'full', className, iconClassName }: LogoProps) 
       </svg>
       <div className="flex flex-col">
         <h1 className="text-2xl font-bold text-foreground font-headline leading-tight">
-          Key 2 Rent
+          Timelaine
         </h1>
         <p className="text-[10px] text-muted-foreground leading-tight hidden sm:block">
           Find Your Home in Kenya
