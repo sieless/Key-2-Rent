@@ -56,9 +56,14 @@ export function ImageGallery({
 
   if (!validImages || validImages.length === 0) {
     return (
-      <div className={cn('relative bg-muted flex items-center justify-center', className)}>
-        <div className="text-center p-8">
-          <p className="text-muted-foreground">No images available</p>
+      <div className={cn('relative bg-muted flex items-center justify-center rounded-lg', className)}>
+        <div className="text-center p-8 space-y-2">
+          <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Ask landlord for photos
+          </p>
+          <p className="text-sm text-muted-foreground/80">
+            Call or text the landlord to request more property images.
+          </p>
         </div>
       </div>
     );

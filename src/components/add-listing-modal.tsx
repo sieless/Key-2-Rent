@@ -90,9 +90,7 @@ const listingSchema = z.object({
     .refine(value => KENYA_PHONE_REGEX.test(value), {
       message: 'Enter a Kenyan phone number in the format +2547XXXXXXXX.',
     }),
-  images: z
-    .array(z.string())
-    .min(1, 'At least one image is required.'),
+  images: z.array(z.string()).default([]),
   features: z.array(z.string()).optional(),
   status: z.enum(['Vacant', 'Occupied', 'Available Soon'], {
     required_error: 'Please select the availability status.',
