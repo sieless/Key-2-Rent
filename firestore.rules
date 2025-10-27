@@ -61,7 +61,7 @@ service cloud.firestore {
      * @principle Enforces document ownership for writes, allows public reads for listings.
      *
      * @fields Required: type, location, price, contact, status, userId, createdAt, images
-     * @fields Optional: name, deposit, depositMonths, businessTerms, locationDescription, features, totalUnits, availableUnits
+     * @fields Optional: name, deposit, depositMonths, businessTerms, locationDescription, salePrice, features, totalUnits, availableUnits
      * @fields Optional (admin-managed): isFeatured, featuredUntil, featuredPaidAt, featuredPaidAmount,
      *                                   isBoosted, boostedUntil, boostedPaidAt, boostedPaidAmount
      */

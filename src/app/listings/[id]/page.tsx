@@ -3,7 +3,7 @@
 // Force dynamic rendering (disable static generation)
 export const dynamic = 'force-dynamic';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { doc } from 'firebase/firestore';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { useParams, useRouter } from 'next/navigation';
@@ -30,7 +30,8 @@ import {
   FileText,
   Copy,
   MessageCircle,
-  Share2
+  Share2,
+  Tag
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/header';
@@ -91,11 +92,18 @@ export default function ListingDetailPage() {
 
   const handleShare = async () => {
     const url = window.location.href;
+    const isForSale = listing?.status === 'For Sale';
+    const sharePrice = isForSale
+      ? typeof listing?.salePrice === 'number' ? listing?.salePrice : undefined
+      : typeof listing?.price === 'number' ? listing?.price : undefined;
+    const formattedSharePrice = typeof sharePrice === 'number'
+      ? ` KES ${sharePrice.toLocaleString()}${isForSale ? '' : '/month'}`
+      : '';
     if (navigator.share) {
       try {
         await navigator.share({
           title: listing?.name || `${listing?.type} in ${listing?.location}`,
-          text: `Check out this property: KES ${listing?.price.toLocaleString()}/month`,
+          text: sharePrice ? `Check out this property listed at${formattedSharePrice}` : 'Check out this property',
           url: url,
         });
       } catch (err) {
@@ -106,7 +114,9 @@ export default function ListingDetailPage() {
       navigator.clipboard.writeText(url);
       toast({
         title: 'Link Copied!',
-        description: 'Share this listing with others',
+        description: typeof sharePrice === 'number'
+          ? `Share this listing priced at${formattedSharePrice}.`
+          : 'Share this listing with others',
       });
     }
   };
@@ -175,6 +185,11 @@ export default function ListingDetailPage() {
   }
 
   const hasImages = listing.images && listing.images.length > 0;
+  const isForSale = listing.status === 'For Sale';
+  const formattedSalePrice = typeof listing.salePrice === 'number'
+    ? `Ksh ${listing.salePrice.toLocaleString()}`
+    : null;
+  const contactLabel = isForSale ? 'Contact Seller' : 'Contact Landlord';
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(listing.location + ", Machakos")}`;
 
   return (
@@ -210,7 +225,11 @@ export default function ListingDetailPage() {
                   getStatusClass(listing.status)
                 )}
               >
-                {listing.status === 'Available Soon' ? <CalendarClock className="mr-1.5 h-4 w-4" /> : null}
+                {listing.status === 'Available Soon' ? (
+                  <CalendarClock className="mr-1.5 h-4 w-4" />
+                ) : listing.status === 'For Sale' ? (
+                  <Tag className="mr-1.5 h-4 w-4" />
+                ) : null}
                 {listing.status}
               </Badge>
             </div>
@@ -223,13 +242,24 @@ export default function ListingDetailPage() {
                       {listing.name}
                     </h1>
                   )}
-                  <h2 className="text-4xl font-extrabold text-foreground mb-1">
+                  {isForSale && formattedSalePrice ? (
+                    <div>
+                      <h2 className="text-4xl font-extrabold text-foreground mb-1">
+                        {formattedSalePrice}
+                      </h2>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Sale price
+                      </p>
+                    </div>
+                  ) : (
+                    <h2 className="text-4xl font-extrabold text-foreground mb-1">
                       Ksh {listing.price?.toLocaleString() || '0'}
                       <span className="text-xl font-medium text-muted-foreground">
                         /month
                       </span>
                     </h2>
-                    {listing.deposit && (
+                  )}
+                    {listing.deposit && !isForSale && (
                       <div className="flex items-center text-muted-foreground">
                           <Wallet className="w-4 h-4 mr-2" />
                           <span>Deposit: Ksh {listing.deposit.toLocaleString()}
@@ -322,8 +352,14 @@ export default function ListingDetailPage() {
                     )}
                   </div>
                   <div className="space-y-3">
+                    {isForSale && formattedSalePrice && (
+                      <div className="rounded-md border border-primary/40 bg-primary/5 px-3 py-2">
+                        <p className="text-xs uppercase tracking-wide text-primary">Sale price</p>
+                        <p className="text-lg font-semibold text-primary">{formattedSalePrice}</p>
+                      </div>
+                    )}
                     <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center">
-                      <Briefcase className="mr-2 h-5 w-5 text-primary" /> Contact Landlord
+                      <Briefcase className="mr-2 h-5 w-5 text-primary" /> {contactLabel}
                     </h3>
                     {/* FEATURE FLAG: Show payment gate if admin enabled contact payments */}
                     <div className="space-y-2">

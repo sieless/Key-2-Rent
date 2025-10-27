@@ -5,6 +5,7 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { InactivityWarningDialog } from '@/components/inactivity-warning-dialog';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: 'Timelaine | Find Your Perfect Home in Kenya',
@@ -55,6 +56,7 @@ export default function RootLayout({
               <InactivityWarningDialog />
             </FirebaseClientProvider>
             <Toaster />
+            <Analytics />
           </ErrorBoundary>
         </ThemeProvider>
       </body>

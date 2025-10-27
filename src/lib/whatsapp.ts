@@ -18,13 +18,27 @@ function normalizePhoneNumber(raw: string | undefined | null): string | null {
   return digits.length >= 9 ? digits : null;
 }
 
-function buildMessage(listing: Pick<Listing, 'name' | 'type' | 'location' | 'price'>): string {
+function buildMessage(listing: Pick<Listing, 'name' | 'type' | 'location' | 'price' | 'status' | 'salePrice'>): string {
   const propertyLabel = listing.name?.trim() || `${listing.type} in ${listing.location}`;
-  const formattedPrice = Number.isFinite(listing.price)
-    ? ` listed at Ksh ${listing.price.toLocaleString()}`
-    : '';
+  const isForSale = listing.status === 'For Sale';
 
-  return `Hello! I came across your ${propertyLabel} on Timelaine and wanted to confirm if it is still available${formattedPrice}. I'm very interested—could we discuss the rental terms and schedule a viewing?`;
+  const priceValue = isForSale
+    ? typeof listing.salePrice === 'number' ? listing.salePrice : undefined
+    : Number.isFinite(listing.price) ? listing.price : undefined;
+
+  let formattedPrice = '';
+  if (typeof priceValue === 'number') {
+    const priceText = `Ksh ${priceValue.toLocaleString()}`;
+    formattedPrice = isForSale
+      ? ` listed for sale at ${priceText}`
+      : ` listed at ${priceText} per month`;
+  }
+
+  const closing = isForSale
+    ? 'I am very interested—could we discuss the purchase details and schedule a viewing?'
+    : 'I\'m very interested—could we discuss the rental terms and schedule a viewing?';
+
+  return `Hello! I came across your ${propertyLabel} on Timelaine and wanted to confirm if it is still available${formattedPrice}. ${closing}`;
 }
 
 export function getListingWhatsAppLink(listing: Listing): string | null {

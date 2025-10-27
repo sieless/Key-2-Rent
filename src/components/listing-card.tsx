@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, Hourglass, MapPin, Star, Zap, Heart, Building2, MessageCircle, CheckCircle2 } from 'lucide-react';
+import { Phone, Hourglass, MapPin, Star, Zap, Heart, Building2, MessageCircle, CheckCircle2, Tag } from 'lucide-react';
 import { type Listing } from '@/types';
 import { cn, getPropertyIcon, getStatusClass } from '@/lib/utils';
 import { DefaultPlaceholder } from './default-placeholder';
@@ -34,11 +34,16 @@ export function ListingCard({ listing }: ListingCardProps) {
   const isOwner = user?.uid === listing.userId;
   const paymentCleared = listing.paymentStatus === 'paid';
   const requiresPaymentConfirmation = listing.status === 'Vacant' && !paymentCleared;
+  const isForSale = listing.status === 'For Sale';
+  const formattedSalePrice = typeof listing.salePrice === 'number'
+    ? `Ksh ${listing.salePrice.toLocaleString()}`
+    : null;
 
   const statusIconMap: Record<Listing['status'], ReactNode> = {
     Vacant: <CheckCircle2 className="mr-1.5 h-4 w-4" />,
     Occupied: <Building2 className="mr-1.5 h-4 w-4" />,
     'Available Soon': <Hourglass className="mr-1.5 h-4 w-4" />,
+    'For Sale': <Tag className="mr-1.5 h-4 w-4" />,
   };
 
   const statusIcon = statusIconMap[listing.status];
@@ -235,10 +240,19 @@ export function ListingCard({ listing }: ListingCardProps) {
               {listing.name}
             </h3>
           )}
-          <h3 className="text-xl font-semibold text-foreground leading-tight">
-            Ksh {listing.price?.toLocaleString() || "0"}
-            <span className="text-sm font-normal text-muted-foreground">/month</span>
-          </h3>
+          {isForSale && formattedSalePrice ? (
+            <div className="space-y-1">
+              <h3 className="text-xl font-semibold text-foreground leading-tight">
+                {formattedSalePrice}
+              </h3>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Sale price</p>
+            </div>
+          ) : (
+            <h3 className="text-xl font-semibold text-foreground leading-tight">
+              Ksh {listing.price?.toLocaleString() || "0"}
+              <span className="text-sm font-normal text-muted-foreground">/month</span>
+            </h3>
+          )}
           <div className="mt-3 border-t pt-3 flex-grow">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase mb-2">
               Features
@@ -257,6 +271,11 @@ export function ListingCard({ listing }: ListingCardProps) {
                 <Badge variant="outline" className="text-xs px-2 py-1">+{listing.features.length - 3} more</Badge>
               )}
             </div>
+            {isForSale && formattedSalePrice && (
+              <p className="text-xs text-muted-foreground">
+                Listed for sale at {formattedSalePrice}.
+              </p>
+            )}
             {listing.locationDescription && (
               <p className="text-xs text-muted-foreground mt-3 line-clamp-2">
                 {listing.locationDescription}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, useRef, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -16,7 +16,6 @@ import { useFirestore, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { analyzeListingImage } from '@/app/actions';
 import { ImageUpload } from '@/components/image-upload';
-import { useCurrentUserProfile } from '@/hooks/use-user-profile';
 import { getVacancyPaymentAmount } from '@/lib/vacancy-payments';
 
 import { Button } from '@/components/ui/button';
@@ -45,6 +44,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sparkles, Loader2, Wand2 } from 'lucide-react';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Textarea } from './ui/textarea';
+import type { Listing } from '@/types';
 
 const KENYA_PHONE_REGEX = /^\+254\d{9}$/;
 
@@ -97,9 +97,10 @@ const listingSchema = z.object({
     }),
   images: z.array(z.string()).default([]),
   features: z.array(z.string()).optional(),
-  status: z.enum(['Vacant', 'Occupied', 'Available Soon'], {
+  status: z.enum(['Vacant', 'Occupied', 'Available Soon', 'For Sale'], {
     required_error: 'Please select the availability status.',
   }),
+  salePrice: z.coerce.number().optional().or(z.literal('')),
   totalUnits: z.coerce.number().min(1, 'Total units must be at least 1.'),
   availableUnits: z.coerce.number().min(0, 'Available units cannot be negative.'),
 }).refine((data) => {
@@ -108,17 +109,77 @@ const listingSchema = z.object({
 }, {
   message: 'Available units cannot exceed total units.',
   path: ['availableUnits'],
+}).refine((data) => {
+  if (data.status === 'For Sale') {
+    const numericSalePrice = Number(data.salePrice);
+    return !Number.isNaN(numericSalePrice) && numericSalePrice > 0;
+  }
+  return true;
+}, {
+  message: 'Sale price is required and must be greater than 0 for properties on sale.',
+  path: ['salePrice'],
 });
 
 type AddListingModalProps = {
   isOpen?: boolean;
   onClose?: () => void;
   renderInline?: boolean;
+  mode?: 'create' | 'edit';
+  listing?: Listing | null;
 };
 
 type ListingData = z.infer<typeof listingSchema>;
 
-export function AddListingModal({ isOpen = false, onClose, renderInline = false }: AddListingModalProps) {
+const createDefaultListingValues = (): ListingData => ({
+  name: '',
+  type: 'Bedsitter',
+  location: 'Machakos Town',
+  locationDescription: '',
+  price: 5000,
+  salePrice: '',
+  deposit: '',
+  depositMonths: '',
+  businessTerms: '',
+  contact: '',
+  images: [],
+  features: [],
+  status: 'Available Soon',
+  totalUnits: 1,
+  availableUnits: 1,
+});
+
+const mapListingToFormValues = (item: Listing): ListingData => ({
+  name: item.name ?? '',
+  type: item.type,
+  location: item.location,
+  locationDescription: item.locationDescription ?? '',
+  price: item.price,
+  salePrice: typeof item.salePrice === 'number' ? item.salePrice : '',
+  deposit: typeof item.deposit === 'number' ? item.deposit : '',
+  depositMonths: typeof item.depositMonths === 'number' ? item.depositMonths : '',
+  businessTerms: item.businessTerms ?? '',
+  contact: item.contact,
+  images: Array.isArray(item.images) ? [...item.images] : [],
+  features: Array.isArray(item.features) ? [...item.features] : [],
+  status: item.status,
+  totalUnits: typeof item.totalUnits === 'number' ? item.totalUnits : 1,
+  availableUnits: typeof item.availableUnits === 'number' ? item.availableUnits : 0,
+});
+
+export function AddListingModal({
+  isOpen = false,
+  onClose,
+  renderInline = false,
+  mode = 'create',
+  listing = null,
+}: AddListingModalProps) {
+  const isEditMode = mode === 'edit' && Boolean(listing);
+  const initialValues = useMemo<ListingData>(() => {
+    if (isEditMode && listing) {
+      return mapListingToFormValues(listing);
+    }
+    return createDefaultListingValues();
+  }, [isEditMode, listing]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAnalyzing, startTransition] = useTransition();
   const [analysisResult, setAnalysisResult] = useState<{
@@ -126,56 +187,77 @@ export function AddListingModal({ isOpen = false, onClose, renderInline = false 
     suggestedImprovements: string;
   } | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [analyzedImageIndex, setAnalyzedImageIndex] = useState<number | null>(null);
   const [featureOptions, setFeatureOptions] = useState(allFeatureOptions.residential);
+  const previousTypeRef = useRef<string | null>(null);
+  const previousStatusRef = useRef<string | null>(null);
 
 
   const { toast } = useToast();
   const { user } = useUser();
   const db = useFirestore();
-  const { profile } = useCurrentUserProfile();
   const safeOnClose = onClose ?? (() => {});
 
   const form = useForm<ListingData>({
     resolver: zodResolver(listingSchema),
-    defaultValues: {
-      name: '',
-      type: 'Bedsitter',
-      location: 'Machakos Town',
-      locationDescription: '',
-      price: 5000,
-      contact: '',
-      features: [],
-      images: [],
-      deposit: '',
-      depositMonths: '',
-      businessTerms: '',
-      status: 'Available Soon',
-      totalUnits: 1,
-      availableUnits: 1,
-    },
+    defaultValues: initialValues,
   });
   
   const selectedType = form.watch('type');
+  const selectedStatus = form.watch('status');
+  const salePriceValue = form.watch('salePrice');
 
   useEffect(() => {
-    if (selectedType === 'Business') {
-      setFeatureOptions(allFeatureOptions.business);
-    } else {
-      setFeatureOptions(allFeatureOptions.residential);
+    if (!renderInline && !isOpen) {
+      return;
     }
-    // Reset features when type changes
-    form.setValue('features', []);
+    form.reset(initialValues);
+    const nextOptions = initialValues.type === 'Business'
+      ? allFeatureOptions.business
+      : allFeatureOptions.residential;
+    setFeatureOptions(nextOptions);
+    previousTypeRef.current = initialValues.type;
+    previousStatusRef.current = initialValues.status;
+    setAnalysisResult(null);
+    setAnalysisError(null);
+  }, [initialValues, form, isOpen, renderInline]);
+
+  useEffect(() => {
+    const nextOptions = selectedType === 'Business'
+      ? allFeatureOptions.business
+      : allFeatureOptions.residential;
+    setFeatureOptions(nextOptions);
+
+    const previousType = previousTypeRef.current;
+    if (previousType && previousType !== selectedType) {
+      form.setValue('features', []);
+    }
+    previousTypeRef.current = selectedType;
   }, [selectedType, form]);
+
+  useEffect(() => {
+    const previousStatus = previousStatusRef.current;
+    if (previousStatus === 'For Sale' && selectedStatus !== 'For Sale') {
+      form.setValue('salePrice', '', { shouldValidate: false });
+    }
+    previousStatusRef.current = selectedStatus;
+  }, [selectedStatus, form]);
+
+  useEffect(() => {
+    if (selectedStatus === 'For Sale') {
+      const numericSalePrice = Number(salePriceValue);
+      if (!Number.isNaN(numericSalePrice) && numericSalePrice > 0) {
+        form.setValue('price', numericSalePrice, { shouldValidate: false });
+      }
+    }
+  }, [selectedStatus, salePriceValue, form]);
 
 
   const imageUrls = form.watch('images') || [];
 
 
-  const handleAnalyzeImage = async (imageUrl: string, index: number) => {
+  const handleAnalyzeImage = async (imageUrl: string) => {
     setAnalysisError(null);
     setAnalysisResult(null);
-    setAnalyzedImageIndex(index);
 
     const formData = new FormData();
     formData.append('image', imageUrl);
@@ -195,7 +277,16 @@ export function AddListingModal({ isOpen = false, onClose, renderInline = false 
       toast({
         variant: 'destructive',
         title: 'Not authenticated',
-        description: 'You must be logged in to create a listing.',
+        description: 'You must be logged in to manage listings.',
+      });
+      return;
+    }
+
+    if (!db) {
+      toast({
+        variant: 'destructive',
+        title: 'Database unavailable',
+        description: 'Please try again in a moment.',
       });
       return;
     }
@@ -203,77 +294,116 @@ export function AddListingModal({ isOpen = false, onClose, renderInline = false 
     setIsSubmitting(true);
 
     try {
-      const listingPayload: Record<string, unknown> = {
+      const payload: Record<string, unknown> = {
         ...data,
-        userId: user.uid,
-        createdAt: serverTimestamp(),
+        features: Array.isArray(data.features) ? [...data.features] : [],
+        images: Array.isArray(data.images) ? [...data.images] : [],
       };
 
-      if (!listingPayload.name) delete listingPayload.name;
-      if (!listingPayload.businessTerms) delete listingPayload.businessTerms;
-
-      if (typeof listingPayload.locationDescription === 'string') {
-        const trimmed = listingPayload.locationDescription.trim();
-        if (trimmed) {
-          listingPayload.locationDescription = trimmed;
-        } else {
-          delete listingPayload.locationDescription;
+      const optionalTextFields: Array<keyof ListingData> = ['name', 'businessTerms', 'locationDescription'];
+      optionalTextFields.forEach(field => {
+        const value = payload[field];
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          if (trimmed) {
+            payload[field] = trimmed;
+          } else {
+            delete payload[field];
+          }
         }
+      });
+
+      const numericFields: Array<keyof ListingData> = ['price', 'deposit', 'depositMonths', 'totalUnits', 'availableUnits'];
+
+      if (data.status === 'For Sale') {
+        const salePriceValue = payload.salePrice;
+        if (salePriceValue === '' || salePriceValue === null || salePriceValue === undefined) {
+          delete payload.salePrice;
+        } else {
+          const numericSalePrice = Number(salePriceValue);
+          if (Number.isNaN(numericSalePrice) || numericSalePrice <= 0) {
+            delete payload.salePrice;
+          } else {
+            payload.salePrice = numericSalePrice;
+            payload.price = numericSalePrice;
+          }
+        }
+      } else {
+        delete payload.salePrice;
       }
 
-      const fieldsToProcessAsNumbers: Array<keyof ListingData> = ['price', 'deposit', 'depositMonths', 'totalUnits', 'availableUnits'];
-      fieldsToProcessAsNumbers.forEach(field => {
-        const value = listingPayload[field];
+      numericFields.forEach(field => {
+        const value = payload[field];
         if (value === '' || value === undefined || value === null) {
-          delete listingPayload[field];
+          delete payload[field];
           return;
         }
 
         const numericValue = Number(value);
         if (Number.isNaN(numericValue)) {
-          delete listingPayload[field];
+          delete payload[field];
           return;
         }
 
-        listingPayload[field] = numericValue;
+        payload[field] = numericValue;
       });
 
-      const isVacant = data.status === 'Vacant';
-      const priceValue = typeof listingPayload.price === 'number' ? listingPayload.price : Number(listingPayload.price ?? 0);
-      const computedAmount = isVacant ? getVacancyPaymentAmount(priceValue) : null;
+      if (isEditMode && listing) {
+        payload.updatedAt = serverTimestamp();
 
-      listingPayload.approvalStatus = 'auto';
-      listingPayload.visibilityStatus = isVacant ? 'hidden' : 'visible';
-      listingPayload.paymentStatus = isVacant ? 'pending' : 'paid';
-      listingPayload.paymentMode = isVacant ? '10% Monthly Rent' : null;
-      listingPayload.amountDue = isVacant ? computedAmount : null;
-      listingPayload.proofUploadUrl = null;
-      listingPayload.confirmationText = null;
+        await updateDoc(doc(db, 'listings', listing.id), payload);
 
-      if (!db) {
-        throw new Error('Database unavailable');
+        toast({
+          title: 'Listing updated',
+          description: 'Your changes have been saved.',
+        });
+        safeOnClose();
+        return;
       }
 
-      const listingRef = await addDoc(collection(db, 'listings'), listingPayload);
+      payload.userId = user.uid;
+      payload.createdAt = serverTimestamp();
+
+      const isVacant = data.status === 'Vacant';
+      const isForSale = data.status === 'For Sale';
+      const priceValue = typeof payload.price === 'number' ? payload.price : Number(payload.price ?? 0);
+      const computedAmount = isVacant ? getVacancyPaymentAmount(priceValue) : null;
+
+      payload.approvalStatus = 'auto';
+      payload.visibilityStatus = isVacant ? 'hidden' : 'visible';
+      payload.paymentStatus = isVacant ? 'pending' : 'paid';
+      payload.paymentMode = isVacant ? '10% Monthly Rent' : null;
+      payload.amountDue = isVacant ? computedAmount : null;
+      payload.proofUploadUrl = null;
+      payload.confirmationText = null;
+
+      if (isForSale) {
+        payload.visibilityStatus = 'visible';
+        payload.paymentStatus = null;
+        payload.paymentMode = null;
+        payload.amountDue = null;
+      }
+
+      const listingRef = await addDoc(collection(db, 'listings'), payload);
 
       const userRef = doc(db, 'users', user.uid);
       updateDocumentNonBlocking(userRef, { listings: arrayUnion(listingRef.id) });
 
       toast({
-        title: isVacant ? 'Listing created - payment required' : 'Success!',
+        title: isVacant ? 'Listing created - payment required' : 'Listing published',
         description: isVacant
           ? 'Head to the payment steps to get your property live.'
           : 'Your listing is live for renters to view!',
       });
 
-      form.reset();
+      form.reset(createDefaultListingValues());
       safeOnClose();
     } catch (error) {
-      console.error('Error adding document: ', error);
+      console.error('Error saving listing: ', error);
       toast({
         variant: 'destructive',
         title: 'Uh oh! Something went wrong.',
-        description: 'Failed to create listing. Please try again.',
+        description: 'Failed to save listing. Please try again.',
       });
     } finally {
       setIsSubmitting(false);
@@ -398,15 +528,44 @@ export function AddListingModal({ isOpen = false, onClose, renderInline = false 
                           <SelectItem value="Vacant">Vacant</SelectItem>
                           <SelectItem value="Occupied">Occupied</SelectItem>
                           <SelectItem value="Available Soon">Available Soon</SelectItem>
+                          <SelectItem value="For Sale">For Sale</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription className="text-xs text-muted-foreground">
-                        Vacant listings require proof of payment before they appear publicly.
+                        {selectedStatus === 'Vacant'
+                          ? 'Vacant listings require proof of payment before they appear publicly.'
+                          : selectedStatus === 'For Sale'
+                          ? 'Buyers will see this property as available for purchase at the sale price you set.'
+                          : 'Choose the current availability of the property.'}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                {selectedStatus === 'For Sale' && (
+                  <FormField
+                    control={form.control}
+                    name="salePrice"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sale Price (Ksh)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="e.g. 2500000"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription className="text-xs text-muted-foreground">
+                          Enter the one-off purchase price for buyers.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
@@ -414,14 +573,22 @@ export function AddListingModal({ isOpen = false, onClose, renderInline = false 
                     name="price"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Rent per Month (Ksh)</FormLabel>
+                        <FormLabel>
+                          {selectedStatus === 'For Sale' ? 'Sale Price (auto)' : 'Rent per Month (Ksh)'}
+                        </FormLabel>
                         <FormControl>
                           <Input
                             type="number"
                             placeholder="e.g. 8500"
+                            disabled={selectedStatus === 'For Sale'}
                             {...field}
                           />
                         </FormControl>
+                        {selectedStatus === 'For Sale' ? (
+                          <FormDescription className="text-xs text-muted-foreground">
+                            Automatically synced from the sale price above.
+                          </FormDescription>
+                        ) : null}
                         <FormMessage />
                       </FormItem>
                     )}
@@ -449,7 +616,7 @@ export function AddListingModal({ isOpen = false, onClose, renderInline = false 
                   />
                 </div>
                  
-                 {selectedType === 'Business' && (
+                 {selectedStatus !== 'For Sale' && selectedType === 'Business' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <FormField
                             control={form.control}
@@ -488,7 +655,7 @@ export function AddListingModal({ isOpen = false, onClose, renderInline = false 
                     </div>
                  )}
 
-                 {selectedType !== 'Business' && (
+                 {selectedStatus !== 'For Sale' && selectedType !== 'Business' && (
                     <FormField
                         control={form.control}
                         name="deposit"
@@ -592,7 +759,7 @@ export function AddListingModal({ isOpen = false, onClose, renderInline = false 
                           variant="outline"
                           size="sm"
                           className="mt-2"
-                          onClick={() => handleAnalyzeImage(imageUrls[0], 0)}
+                          onClick={() => handleAnalyzeImage(imageUrls[0])}
                           disabled={isAnalyzing}
                         >
                           {isAnalyzing ? (

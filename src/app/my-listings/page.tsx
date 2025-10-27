@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
-import { MapPin, PlusCircle, Loader2, Hourglass, CheckCircle2, XCircle, BarChart3, LayoutGrid, Minus, Plus, Building2, ShieldAlert, Phone } from 'lucide-react';
+import { MapPin, PlusCircle, Loader2, Hourglass, CheckCircle2, XCircle, BarChart3, LayoutGrid, Minus, Plus, Building2, ShieldAlert, Phone, Pencil, Tag } from 'lucide-react';
 import { DeleteListingDialog } from '@/components/delete-listing-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +68,7 @@ function StatusLegend() {
     { label: 'Vacant', status: 'Vacant' },
     { label: 'Available Soon', status: 'Available Soon' },
     { label: 'Occupied', status: 'Occupied' },
+    { label: 'For Sale', status: 'For Sale' },
   ];
 
   return (
@@ -94,6 +95,8 @@ export default function MyListingsPage() {
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [updatingUnitsId, setUpdatingUnitsId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [listingForEdit, setListingForEdit] = useState<Listing | null>(null);
   const [paymentModalListing, setPaymentModalListing] = useState<Listing | null>(null);
 
   const { user, isUserLoading } = useUser();
@@ -102,6 +105,18 @@ export default function MyListingsPage() {
   const { toast } = useToast();
   const { profile, loading: profileLoading } = useUserProfile();
   const isLandlord = profile?.accountType === 'landlord';
+
+  const openCreateModal = () => {
+    setModalMode('create');
+    setListingForEdit(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (item: Listing) => {
+    setModalMode('edit');
+    setListingForEdit(item);
+    setIsModalOpen(true);
+  };
 
   useEffect(() => {
     if (isUserLoading || profileLoading) {
@@ -288,6 +303,8 @@ export default function MyListingsPage() {
         return 'Fully Rented';
       case 'Available Soon':
         return 'Available Soon';
+      case 'For Sale':
+        return 'For Sale';
       default:
         return status;
     }
@@ -301,6 +318,8 @@ export default function MyListingsPage() {
         return <Building2 className="mr-1.5 h-4 w-4" />;
       case 'Available Soon':
         return <Hourglass className="mr-1.5 h-4 w-4" />;
+      case 'For Sale':
+        return <Tag className="mr-1.5 h-4 w-4" />;
       default:
         return null;
     }
@@ -365,11 +384,11 @@ export default function MyListingsPage() {
   return (
     <>
     <div className="flex flex-col min-h-screen">
-      <Header onPostClick={() => setIsModalOpen(true)} />
+      <Header onPostClick={openCreateModal} />
       <main className="flex-grow max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 w-full">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-foreground">My Listings</h1>
-          <Button onClick={() => setIsModalOpen(true)}>
+          <Button onClick={openCreateModal}>
             <PlusCircle className="mr-2 h-4 w-4" /> Add New Listing
           </Button>
         </div>
@@ -406,6 +425,10 @@ export default function MyListingsPage() {
                     const isRejectedApproval = listing.approvalStatus === 'rejected';
                     const canAdjustUnits = !awaitingApproval && !isRejectedApproval;
                     const canToggleStatus = ['Vacant', 'Occupied'].includes(listing.status) && !awaitingApproval && !isRejectedApproval;
+                    const isForSaleListing = listing.status === 'For Sale';
+                    const formattedSalePrice = typeof listing.salePrice === 'number'
+                      ? `Ksh ${listing.salePrice.toLocaleString()}`
+                      : null;
 
                     return (
                     <Card key={listing.id} className="overflow-hidden flex flex-col h-full">
@@ -441,9 +464,18 @@ export default function MyListingsPage() {
                       {listing.name}
                     </CardTitle>
                   )}
-                  <p className="text-xl font-bold text-foreground">
-                    Ksh {listing.price.toLocaleString()}/month
-                  </p>
+                  {isForSaleListing && formattedSalePrice ? (
+                    <div className="space-y-1">
+                      <p className="text-xl font-bold text-foreground">
+                        {formattedSalePrice}
+                      </p>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Sale price</p>
+                    </div>
+                  ) : (
+                    <p className="text-xl font-bold text-foreground">
+                      Ksh {listing.price.toLocaleString()}/month
+                    </p>
+                  )}
                    <div className="flex items-center justify-between text-sm text-muted-foreground pt-2">
                     <p className="font-semibold flex items-center gap-2">
                       <MapPin className="w-4 h-4" /> {listing.location}
@@ -499,8 +531,22 @@ export default function MyListingsPage() {
                       </div>
                     </div>
                   )}
-                  {/* Multi-unit controls */}
-                  {isMultiUnit ? (
+                  {/* Listing actions */}
+                  {isForSaleListing ? (
+                    <div className="flex items-center gap-2 w-full">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => openEditModal(listing)}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" /> Edit Listing
+                      </Button>
+                      <DeleteListingDialog
+                        onConfirm={() => handleDelete(listing.id)}
+                        buttonClassName="flex-1"
+                      />
+                    </div>
+                  ) : isMultiUnit ? (
                     <div className="flex items-center justify-between w-full gap-2">
                       <Button
                         size="sm"
@@ -571,7 +617,17 @@ export default function MyListingsPage() {
                         )}
                         {listing.status === 'Vacant' ? 'Mark as rented' : 'Mark as available'}
                       </Button>
-                      <DeleteListingDialog onConfirm={() => handleDelete(listing.id)} />
+                      <Button
+                        variant="outline"
+                        onClick={() => openEditModal(listing)}
+                        className="flex-1"
+                      >
+                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                      </Button>
+                      <DeleteListingDialog
+                        onConfirm={() => handleDelete(listing.id)}
+                        buttonClassName="flex-1"
+                      />
                     </div>
                   )}
                 </CardFooter>
@@ -588,7 +644,7 @@ export default function MyListingsPage() {
                 <p className="text-muted-foreground mt-2">
                   Click the button below to add your first property!
                 </p>
-                <Button onClick={() => setIsModalOpen(true)} className="mt-6">
+                <Button onClick={openCreateModal} className="mt-6">
                     <PlusCircle className="mr-2 h-4 w-4" /> Post a Listing
                 </Button>
               </div>
@@ -604,7 +660,13 @@ export default function MyListingsPage() {
        {isModalOpen && (
         <AddListingModal
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => {
+            setIsModalOpen(false);
+            setListingForEdit(null);
+            setModalMode('create');
+          }}
+          mode={modalMode}
+          listing={listingForEdit}
         />
       )}
       {paymentModalListing && (

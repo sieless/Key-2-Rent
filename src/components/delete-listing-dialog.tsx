@@ -13,13 +13,16 @@ import {
 import { Button } from './ui/button';
 import { Loader2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 
 type DeleteListingDialogProps = {
   onConfirm: () => void;
+  buttonClassName?: string;
 };
 
 export function DeleteListingDialog({
   onConfirm,
+  buttonClassName,
 }: DeleteListingDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -35,7 +38,7 @@ export function DeleteListingDialog({
     <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
       <Button
         variant="destructive"
-        className="w-full"
+        className={cn('w-full', buttonClassName)}
         onClick={() => setIsOpen(true)}
       >
         <Trash2 className="mr-2 h-4 w-4" /> Delete

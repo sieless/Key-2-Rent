@@ -33,6 +33,8 @@ export const getStatusClass = (status: Listing['status']) => {
       return 'bg-sky-600 text-white hover:bg-sky-700';
     case 'Occupied':
       return 'bg-rose-600 text-white hover:bg-rose-700';
+    case 'For Sale':
+      return 'bg-amber-500 text-white hover:bg-amber-600';
     default:
       return 'bg-gray-500 text-white hover:bg-gray-600';
   }

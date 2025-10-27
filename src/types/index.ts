@@ -22,7 +22,8 @@ export type Listing = {
   images: string[];
   contact: string;
   createdAt: Timestamp;
-  status: 'Vacant' | 'Occupied' | 'Available Soon';
+  status: 'Vacant' | 'Occupied' | 'Available Soon' | 'For Sale';
+  salePrice?: number;
 
   // Multi-unit support
   totalUnits?: number;               // Total units in property (default: 1)
@@ -100,7 +101,8 @@ export type ListingFormData = {
   contact: string;
   images: File[];
   features: string[];
-  status: 'Vacant' | 'Occupied' | 'Available Soon';
+  status: 'Vacant' | 'Occupied' | 'Available Soon' | 'For Sale';
+  salePrice?: number | '';
   totalUnits?: number | '';
   availableUnits?: number | '';
 }

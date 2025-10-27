@@ -35,7 +35,7 @@ interface VacancyPaymentModalProps {
   onOpenChange: (open: boolean) => void;
   propertyType: string;
   monthlyRent: number;
-  listingStatus?: 'Vacant' | 'Occupied' | 'Available Soon';
+  listingStatus?: 'Vacant' | 'Occupied' | 'Available Soon' | 'For Sale';
   listingReference?: string;
   onPaymentConfirmed: (proof: PaymentProofPayload) => Promise<PaymentConfirmationResult | void>;
   isLoading?: boolean;
