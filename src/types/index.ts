@@ -12,6 +12,7 @@ export type Listing = {
   name?: string;
   type: string;
   location: string;
+  locationDescription?: string;
   price: number;
   deposit?: number;
   depositMonths?: number;
@@ -91,6 +92,7 @@ export type ListingFormData = {
   type: string;
   name?: string;
   location: string;
+  locationDescription?: string;
   price: number;
   deposit?: number | '';
   depositMonths?: number | '';

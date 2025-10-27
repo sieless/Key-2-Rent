@@ -37,7 +37,10 @@ function ListingHeroImage({ listing }: { listing: Listing }) {
 
 function ListingSummary({ listing }: { listing: Listing }) {
   const title = listing.name || listing.type || 'Featured property';
-  const detail = listing.description?.trim() || listing.businessTerms?.trim();
+  const detail =
+    listing.description?.trim() ||
+    listing.locationDescription?.trim() ||
+    listing.businessTerms?.trim();
   return (
     <div className="flex h-full flex-col justify-between space-y-6">
       <div className="space-y-3">

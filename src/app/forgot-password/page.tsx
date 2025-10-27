@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
               <Mail className="h-6 w-6 text-primary" />
             </div>
             <h1 className="text-2xl font-bold text-foreground font-headline">
-              Key 2 Rent
+              Timelaine
             </h1>
           </div>
           <CardTitle className="text-2xl text-center">Forgot Password</CardTitle>

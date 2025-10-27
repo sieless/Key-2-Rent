@@ -79,6 +79,11 @@ const listingSchema = z.object({
   name: z.string().optional(),
   type: z.string().min(1, 'House type is required.'),
   location: z.string().min(1, 'Location is required.'),
+  locationDescription: z
+    .string()
+    .max(200, 'Location description should be under 200 characters.')
+    .optional()
+    .or(z.literal('')),
   price: z.coerce.number().min(1, 'Price is required.'),
   deposit: z.coerce.number().optional().or(z.literal('')),
   depositMonths: z.coerce.number().optional().or(z.literal('')),
@@ -137,6 +142,7 @@ export function AddListingModal({ isOpen = false, onClose, renderInline = false 
       name: '',
       type: 'Bedsitter',
       location: 'Machakos Town',
+      locationDescription: '',
       price: 5000,
       contact: '',
       features: [],
@@ -205,6 +211,15 @@ export function AddListingModal({ isOpen = false, onClose, renderInline = false 
 
       if (!listingPayload.name) delete listingPayload.name;
       if (!listingPayload.businessTerms) delete listingPayload.businessTerms;
+
+      if (typeof listingPayload.locationDescription === 'string') {
+        const trimmed = listingPayload.locationDescription.trim();
+        if (trimmed) {
+          listingPayload.locationDescription = trimmed;
+        } else {
+          delete listingPayload.locationDescription;
+        }
+      }
 
       const fieldsToProcessAsNumbers: Array<keyof ListingData> = ['price', 'deposit', 'depositMonths', 'totalUnits', 'availableUnits'];
       fieldsToProcessAsNumbers.forEach(field => {
@@ -345,6 +360,27 @@ export function AddListingModal({ isOpen = false, onClose, renderInline = false 
                     )}
                   />
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name="locationDescription"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Location Description</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="e.g. Kenya Israel opposite T-Tot Gardens"
+                          rows={3}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription className="text-xs text-muted-foreground">
+                        Give renters a simple landmark or directions to find the property easily.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}

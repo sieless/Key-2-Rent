@@ -257,6 +257,11 @@ export function ListingCard({ listing }: ListingCardProps) {
                 <Badge variant="outline" className="text-xs px-2 py-1">+{listing.features.length - 3} more</Badge>
               )}
             </div>
+            {listing.locationDescription && (
+              <p className="text-xs text-muted-foreground mt-3 line-clamp-2">
+                {listing.locationDescription}
+              </p>
+            )}
           </div>
         </CardContent>
         </Link>

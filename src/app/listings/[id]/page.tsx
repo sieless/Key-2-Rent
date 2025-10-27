@@ -282,6 +282,16 @@ export default function ListingDetailPage() {
               </div>
 
               <div className="space-y-8">
+                {listing.locationDescription && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center">
+                      <MapPin className="mr-2 h-5 w-5 text-primary" /> Location Description
+                    </h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">
+                      {listing.locationDescription}
+                    </p>
+                  </div>
+                )}
                 {listing.type === 'Business' && listing.businessTerms && (
                    <div>
                     <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center">

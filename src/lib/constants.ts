@@ -169,6 +169,8 @@ const residentialFeatures = [
     'Balcony', 
     'Secure Compound', 
     'Token Electricity',
+    'Wi-Fi Available',
+    'CCTV Surveillance',
     'Ladies Only',
     'Gents Only',
     'Inside Campus',
@@ -186,6 +188,8 @@ const businessFeatures = [
     'Water Access',
     'Restroom Available',
     'Loading Bay',
+    'Wi-Fi Available',
+    'CCTV Surveillance',
 ];
 
 export const allFeatureOptions = {
