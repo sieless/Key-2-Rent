@@ -1,14 +1,16 @@
 'use client';
 import { Card } from '@/components/ui/card';
 import { houseTypes } from '@/lib/constants';
-import { Bed, Building, School, Store } from 'lucide-react';
+import { Bed, Building, School, Store, Tag } from 'lucide-react';
 
 type RentalTypesProps = {
   onTypeSelect: (type: string) => void;
+  onStatusSelect?: (status: string) => void;
   selectedType: string;
+  selectedStatus?: string;
 };
 
-export function RentalTypes({ onTypeSelect, selectedType }: RentalTypesProps) {
+export function RentalTypes({ onTypeSelect, onStatusSelect, selectedType, selectedStatus }: RentalTypesProps) {
   const getPropertyIcon = (type: string) => {
     const lowerType = type.toLowerCase();
     if (lowerType.includes('bedroom') || lowerType.includes('bedsitter') || lowerType === 'single room') {
@@ -47,6 +49,20 @@ export function RentalTypes({ onTypeSelect, selectedType }: RentalTypesProps) {
             <p className="font-semibold">{type}</p>
           </Card>
         ))}
+        {onStatusSelect && (
+          <Card
+            key="for-sale"
+            className={`p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 ${
+              selectedStatus === 'For Sale'
+                ? 'bg-primary text-primary-foreground shadow-lg'
+                : 'bg-card hover:bg-muted'
+            }`}
+            onClick={() => onStatusSelect(selectedStatus === 'For Sale' ? 'All' : 'For Sale')}
+          >
+            <Tag className="w-8 h-8 mb-2" />
+            <p className="font-semibold">For Sale</p>
+          </Card>
+        )}
       </div>
     </div>
   );

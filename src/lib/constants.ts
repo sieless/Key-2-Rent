@@ -160,7 +160,7 @@ export const popularAreasByCounty: Record<string, string[]> = {
  */
 export const locations = kenyanCounties;
 
-export const houseTypes = ['All', 'Bedsitter', 'Single Room', '1 Bedroom', '2 Bedroom', 'House', 'Hostel', 'Business'];
+export const houseTypes = ['All', 'Bedsitter', 'Single Room', '1 Bedroom', '2 Bedroom', '3-4 Bedroom', 'House', 'Hostel', 'Business'];
 
 const residentialFeatures = [
     'Tiled Floors', 

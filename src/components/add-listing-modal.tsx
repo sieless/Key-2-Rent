@@ -349,6 +349,14 @@ export function AddListingModal({
       });
 
       if (isEditMode && listing) {
+        if (data.status === 'For Sale') {
+          payload.visibilityStatus = 'visible';
+          payload.approvalStatus = 'auto';
+          payload.paymentStatus = null;
+          payload.paymentMode = null;
+          payload.amountDue = null;
+        }
+
         payload.updatedAt = serverTimestamp();
 
         await updateDoc(doc(db, 'listings', listing.id), payload as Partial<Listing>);

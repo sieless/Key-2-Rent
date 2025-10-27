@@ -18,6 +18,7 @@ export const getSubscriptionFee = (type: string) => {
       case '2 Bedroom':
         return 2000;
       case '3 Bedroom':
+      case '3-4 Bedroom':
       case 'House':
         return 3000;
       default: // Bedsitter and others

@@ -7,7 +7,7 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore';
-import { useFirestore, useUser, useFirebase } from '@/firebase';
+import { useFirebase } from '@/firebase';
 import { type Listing } from '@/types';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
@@ -107,6 +107,19 @@ export function ListingsView() {
     handleFilterChange('type', type);
   };
 
+  const handleStatusToggle = (status: string) => {
+    setFilters(prev => {
+      const isActive = prev.status === status;
+      const nextStatus = isActive ? 'All' : status;
+
+      return {
+        ...prev,
+        status: nextStatus,
+        ...(status === 'For Sale' && !isActive ? { type: 'All' } : {}),
+      };
+    });
+  };
+
   const handlePostClick = () => {
     if (isUserLoading) return;
     if (!user) {
@@ -122,15 +135,38 @@ export function ListingsView() {
   };
 
   const regularListings = useMemo(() => {
+    const normalize = (value?: string) => value?.trim().toLowerCase() ?? '';
     const filtered = listings.filter(listing => {
         const locationMatch =
             filters.location === 'All' || listing.location === filters.location;
         const typeMatch = filters.type === 'All' || listing.type === filters.type;
-        const priceMatch = listing.price <= filters.maxPrice;
-        const statusMatch = filters.status === 'All' || listing.status === filters.status;
+        let priceMatch = true;
+        if (normalize(listing.status) !== 'for sale') {
+          priceMatch = typeof listing.price !== 'number'
+            ? true
+            : listing.price <= filters.maxPrice;
+        }
+        const statusMatch = filters.status === 'All'
+          ? true
+          : normalize(listing.status) === normalize(filters.status);
         return locationMatch && typeMatch && priceMatch && statusMatch;
     });
-    return filtered;
+    const statusPriority: Record<string, number> = {
+      'for sale': 5,
+      vacant: 4,
+      'available soon': 3,
+      occupied: 2,
+    };
+    return filtered.sort((a, b) => {
+      const aPriority = statusPriority[normalize(a.status)] ?? 0;
+      const bPriority = statusPriority[normalize(b.status)] ?? 0;
+      if (aPriority !== bPriority) {
+        return bPriority - aPriority;
+      }
+      const aTime = a.createdAt?.toMillis?.() ?? 0;
+      const bTime = b.createdAt?.toMillis?.() ?? 0;
+      return bTime - aTime;
+    });
   }, [listings, filters]);
 
   const visibleListings = useMemo(() => {
@@ -165,7 +201,12 @@ export function ListingsView() {
             <LoadingSkeletons />
           ) : (
             <div className="space-y-12">
-              <RentalTypes onTypeSelect={handleTypeSelect} selectedType={filters.type} />
+              <RentalTypes
+                onTypeSelect={handleTypeSelect}
+                onStatusSelect={handleStatusToggle}
+                selectedType={filters.type}
+                selectedStatus={filters.status}
+              />
               <FeaturedProperties />
 
               <FilterPanel filters={filters} onFilterChange={handleFilterChange} />

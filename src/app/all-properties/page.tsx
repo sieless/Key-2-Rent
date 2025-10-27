@@ -113,14 +113,20 @@ export default function AllPropertiesPage() {
   };
 
   const filteredListings = useMemo(() => {
+    const normalize = (value?: string) => value?.trim().toLowerCase() ?? '';
     const filtered = listings.filter(listing => {
       const locationMatch =
         filters.location === 'All' || listing.location === filters.location;
       const typeMatch = filters.type === 'All' || listing.type === filters.type;
-      const priceMatch = listing.price <= filters.maxPrice;
+      let priceMatch = true;
+      if (normalize(listing.status) !== 'for sale') {
+        priceMatch = typeof listing.price !== 'number'
+          ? true
+          : listing.price <= filters.maxPrice;
+      }
       const statusMatch = filters.status === 'All'
         ? true
-        : listing.status === filters.status;
+        : normalize(listing.status) === normalize(filters.status);
       return locationMatch && typeMatch && priceMatch && statusMatch;
     });
 

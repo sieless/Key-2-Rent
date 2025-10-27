@@ -24,7 +24,7 @@ export function CategorizedListingGrid({
     const categories: Record<string, Listing[]> = {};
 
     listings.forEach((listing) => {
-      const type = listing.type;
+      const type = listing.type ?? 'Other';
       if (!categories[type]) {
         categories[type] = [];
       }
@@ -64,6 +64,11 @@ export function CategorizedListingGrid({
       color: 'text-red-600 dark:text-red-400',
       description: 'Two bedroom apartments',
     },
+    '3-4 Bedroom': {
+      icon: <Building className="h-5 w-5" />,
+      color: 'text-rose-600 dark:text-rose-400',
+      description: 'Spacious three to four bedroom homes',
+    },
     House: {
       icon: <Home className="h-5 w-5" />,
       color: 'text-indigo-600 dark:text-indigo-400',
@@ -100,9 +105,15 @@ export function CategorizedListingGrid({
     );
   }
 
+  const sortedCategories = useMemo(() => {
+    return Object.entries(categorizedListings).sort(([, aListings], [, bListings]) => {
+      return bListings.length - aListings.length;
+    });
+  }, [categorizedListings]);
+
   return (
     <div className="space-y-12">
-      {Object.entries(categorizedListings).map(([category, categoryListings]) => {
+      {sortedCategories.map(([category, categoryListings]) => {
         const meta = categoryMeta[category] || {
           icon: <Building className="h-5 w-5" />,
           color: 'text-gray-600',
