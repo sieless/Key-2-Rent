@@ -14,11 +14,12 @@ import {
   doc,
   deleteDoc,
   updateDoc,
+  setDoc,
   arrayRemove,
   orderBy,
 } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
-import { type Listing } from '@/types';
+import { type Listing, type UserAccountType } from '@/types';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
@@ -44,6 +45,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LandlordAnalytics } from './analytics';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { VacancyPaymentModal } from '@/components/vacancy-payment-modal';
+import { isAdmin } from '@/lib/admin';
 
 function ListingSkeleton() {
   return (
@@ -98,6 +100,7 @@ export default function MyListingsPage() {
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [listingForEdit, setListingForEdit] = useState<Listing | null>(null);
   const [paymentModalListing, setPaymentModalListing] = useState<Listing | null>(null);
+  const [isUpdatingAccountType, setIsUpdatingAccountType] = useState(false);
 
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
@@ -105,6 +108,8 @@ export default function MyListingsPage() {
   const { toast } = useToast();
   const { profile, loading: profileLoading } = useUserProfile();
   const isLandlord = profile?.accountType === 'landlord';
+  const isAdminUser = isAdmin(user?.email ?? null);
+  const currentAccountType: UserAccountType = profile?.accountType ?? 'tenant';
 
   const openCreateModal = () => {
     setModalMode('create');
@@ -128,7 +133,7 @@ export default function MyListingsPage() {
       return;
     }
 
-    if (!db || !isLandlord) {
+    if (!db || (!isLandlord && !isAdminUser)) {
       setListings([]);
       setLoading(false);
       return;
@@ -163,7 +168,7 @@ export default function MyListingsPage() {
     );
 
     return () => unsubscribe();
-  }, [user, isUserLoading, profileLoading, db, router, toast, isLandlord]);
+  }, [user, isUserLoading, profileLoading, db, router, toast, isLandlord, isAdminUser]);
 
   const handleDelete = async (listingId: string) => {
     if (!user || !db) return;
@@ -185,6 +190,39 @@ export default function MyListingsPage() {
         title: 'Deletion Failed',
         description: 'Could not delete the listing. Please try again.',
       });
+    }
+  };
+
+  const handleAccountTypeChange = async (nextType: UserAccountType) => {
+    if (!user || !db) return;
+    if (profile?.accountType === nextType) return;
+
+    setIsUpdatingAccountType(true);
+
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await setDoc(
+        userRef,
+        {
+          accountType: nextType,
+          email: user.email ?? profile?.email ?? '',
+          name: profile?.name ?? user.displayName ?? '',
+        },
+        { merge: true }
+      );
+      toast({
+        title: 'Account role updated',
+        description: `You are now viewing Timelaine as a ${nextType}.`,
+      });
+    } catch (error) {
+      console.error('Error updating account type:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Update failed',
+        description: 'Could not change account type. Please try again.',
+      });
+    } finally {
+      setIsUpdatingAccountType(false);
     }
   };
 
@@ -341,7 +379,7 @@ export default function MyListingsPage() {
     return null;
   }
 
-  if (!isLandlord) {
+  if (!isLandlord && !isAdminUser) {
     return (
       <div className="flex flex-col min-h-screen">
         <Header onPostClick={() => {}} />
@@ -386,6 +424,36 @@ export default function MyListingsPage() {
     <div className="flex flex-col min-h-screen">
       <Header onPostClick={openCreateModal} />
       <main className="flex-grow max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 w-full">
+        {isAdminUser && (
+          <div className="mb-6 rounded-lg border border-muted bg-muted/40 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Admin account role switcher</h2>
+                <p className="text-sm text-muted-foreground">
+                  Current role: <span className="font-medium capitalize">{currentAccountType}</span>
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={currentAccountType === 'tenant' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleAccountTypeChange('tenant')}
+                  disabled={isUpdatingAccountType || currentAccountType === 'tenant'}
+                >
+                  View as Tenant
+                </Button>
+                <Button
+                  variant={currentAccountType === 'landlord' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleAccountTypeChange('landlord')}
+                  disabled={isUpdatingAccountType || currentAccountType === 'landlord'}
+                >
+                  View as Landlord
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-foreground">My Listings</h1>
           <Button onClick={openCreateModal}>

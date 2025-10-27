@@ -351,7 +351,7 @@ export function AddListingModal({
       if (isEditMode && listing) {
         payload.updatedAt = serverTimestamp();
 
-        await updateDoc(doc(db, 'listings', listing.id), payload);
+        await updateDoc(doc(db, 'listings', listing.id), payload as Partial<Listing>);
 
         toast({
           title: 'Listing updated',
