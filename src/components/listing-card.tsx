@@ -172,10 +172,10 @@ export function ListingCard({ listing }: ListingCardProps) {
                 <DefaultPlaceholder type={listing.type} />
               </div>
             )}
-           {/* Status Badge */}
+            {/* Status Badge */}
             <Badge
               className={cn(
-                "absolute top-3 right-3 text-sm z-10",
+                "absolute top-3 right-3 z-10 shadow-lg",
                 getStatusClass(listing.status)
               )}
             >
@@ -185,7 +185,7 @@ export function ListingCard({ listing }: ListingCardProps) {
 
             {/* Multi-unit Badge - shows availability for multi-unit properties */}
             {listing.totalUnits && listing.totalUnits > 1 && (
-              <Badge className="absolute top-14 right-3 text-xs z-10 bg-blue-600 text-white hover:bg-blue-700">
+              <Badge className="absolute top-14 right-3 z-10 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide bg-white/95 text-sky-700 border border-sky-200 shadow-lg">
                 <Building2 className="mr-1 h-3 w-3" />
                 {listing.availableUnits || 0} of {listing.totalUnits} available
               </Badge>

@@ -26,17 +26,22 @@ export const getSubscriptionFee = (type: string) => {
 };
 
 export const getStatusClass = (status: Listing['status']) => {
-  switch (status) {
-    case 'Vacant':
-      return 'bg-emerald-600 text-white hover:bg-emerald-700';
-    case 'Available Soon':
-      return 'bg-sky-600 text-white hover:bg-sky-700';
-    case 'Occupied':
-      return 'bg-rose-600 text-white hover:bg-rose-700';
-    case 'For Sale':
-      return 'bg-amber-500 text-white hover:bg-amber-600';
+  const base =
+    'inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs md:text-sm font-bold uppercase tracking-wide text-white shadow-md transition-colors duration-150 ring-1 ring-offset-0';
+
+  const normalized = status.trim().toLowerCase();
+
+  switch (normalized) {
+    case 'vacant':
+      return cn(base, 'bg-green-600 hover:bg-green-700 ring-green-300/70 shadow-green-500/40');
+    case 'available soon':
+      return cn(base, 'bg-blue-600 hover:bg-blue-700 ring-blue-300/70 shadow-blue-500/40');
+    case 'occupied':
+      return cn(base, 'bg-rose-600 hover:bg-rose-700 ring-rose-300/70 shadow-rose-500/40');
+    case 'for sale':
+      return cn(base, 'bg-amber-500 hover:bg-amber-600 ring-amber-200/70 shadow-amber-500/40');
     default:
-      return 'bg-gray-500 text-white hover:bg-gray-600';
+      return cn(base, 'bg-slate-600 hover:bg-slate-700 shadow-slate-500/40');
   }
 };
 

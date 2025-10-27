@@ -221,7 +221,7 @@ export default function ListingDetailPage() {
               )}
               <Badge
                 className={cn(
-                  "absolute top-10 right-10 text-base z-20",
+                  "absolute top-10 right-10 z-20 md:text-base",
                   getStatusClass(listing.status)
                 )}
               >

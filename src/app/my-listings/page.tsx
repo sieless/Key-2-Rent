@@ -26,7 +26,6 @@ import { Footer } from '@/components/footer';
 import { Button } from '@/components/ui/button';
 import {
   Card,
-  CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -74,13 +73,13 @@ function StatusLegend() {
   ];
 
   return (
-    <div className="mb-6 space-y-2">
+    <div className="mb-6 space-y-2 rounded-lg border border-border/60 bg-background/90 p-4 shadow-sm shadow-black/10">
       <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Availability key</p>
       <div className="flex flex-wrap gap-2">
         {statusItems.map(item => (
           <Badge
             key={item.status}
-            className={cn('text-xs font-semibold px-3 py-1', getStatusClass(item.status))}
+            className={cn(getStatusClass(item.status))}
           >
             {item.label}
           </Badge>
@@ -110,6 +109,10 @@ export default function MyListingsPage() {
   const isLandlord = profile?.accountType === 'landlord';
   const isAdminUser = isAdmin(user?.email ?? null);
   const currentAccountType: UserAccountType = profile?.accountType ?? 'tenant';
+  const actionButtonBase = 'w-full h-9 px-3 text-xs font-semibold rounded-md transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
+  const neutralActionButton = 'bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100 focus-visible:ring-slate-300';
+  const destructiveActionButton = 'bg-rose-600 text-white border border-rose-700/70 hover:bg-rose-700 focus-visible:ring-rose-500';
+  const compactControlButton = 'h-9 w-9 p-0 rounded-md bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2';
 
   const openCreateModal = () => {
     setModalMode('create');
@@ -575,7 +578,7 @@ export default function MyListingsPage() {
                   {/* Multi-unit indicator */}
                   {listing.totalUnits && listing.totalUnits > 1 && (
                     <div className="mt-3 pt-3 border-t">
-                      <Badge variant="secondary" className="gap-1">
+                      <Badge className="gap-1 bg-white/90 text-blue-700 border border-blue-200 shadow-lg">
                         <Building2 className="h-3 w-3" />
                         {availableUnits} of {totalUnits} units available
                       </Badge>
@@ -601,80 +604,93 @@ export default function MyListingsPage() {
                   )}
                   {/* Listing actions */}
                   {isForSaleListing ? (
-                    <div className="flex items-center gap-2 w-full">
+                    <div className="flex w-full flex-wrap items-center justify-center gap-2">
                       <Button
+                        size="sm"
                         variant="outline"
-                        className="flex-1"
+                        className={cn(actionButtonBase, neutralActionButton, 'sm:flex-1 sm:min-w-[150px]')}
                         onClick={() => openEditModal(listing)}
                       >
                         <Pencil className="mr-2 h-4 w-4" /> Edit Listing
                       </Button>
                       <DeleteListingDialog
                         onConfirm={() => handleDelete(listing.id)}
-                        buttonClassName="flex-1"
+                        buttonClassName={cn(actionButtonBase, destructiveActionButton, 'sm:flex-1 sm:min-w-[150px]')}
                       />
                     </div>
                   ) : isMultiUnit ? (
-                    <div className="flex items-center justify-between w-full gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleAdjustUnits(
-                          listing.id,
-                          -1
-                        )}
-                        disabled={
-                          updatingUnitsId === listing.id ||
-                          availableUnits <= 0 ||
-                          !canAdjustUnits
-                        }
-                      >
-                        {updatingUnitsId === listing.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Minus className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <div className="flex-1 text-center">
-                        <p className="text-sm font-semibold">
-                          {availableUnits} / {totalUnits} available
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {getStatusLabel(listing.status)}
-                        </p>
+                    <div className="flex w-full flex-col items-center gap-3">
+                      <div className="flex flex-wrap items-center justify-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={cn(compactControlButton)}
+                          onClick={() => handleAdjustUnits(listing.id, -1)}
+                          disabled={
+                            updatingUnitsId === listing.id ||
+                            availableUnits <= 0 ||
+                            !canAdjustUnits
+                          }
+                        >
+                          {updatingUnitsId === listing.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Minus className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <div className="rounded-md border border-slate-200 bg-muted/80 px-4 py-2 text-center shadow-sm">
+                          <p className="text-sm font-semibold text-foreground">
+                            {availableUnits} / {totalUnits} available
+                          </p>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            {getStatusLabel(listing.status)}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={cn(compactControlButton)}
+                          onClick={() => handleAdjustUnits(listing.id, 1)}
+                          disabled={
+                            updatingUnitsId === listing.id ||
+                            availableUnits >= totalUnits ||
+                            !canAdjustUnits
+                          }
+                        >
+                          {updatingUnitsId === listing.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Plus className="h-4 w-4" />
+                          )}
+                        </Button>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleAdjustUnits(
-                          listing.id,
-                          1
-                        )}
-                        disabled={
-                          updatingUnitsId === listing.id ||
-                          availableUnits >= totalUnits ||
-                          !canAdjustUnits
-                        }
-                      >
-                        {updatingUnitsId === listing.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Plus className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <DeleteListingDialog onConfirm={() => handleDelete(listing.id)} />
+                      <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={cn(actionButtonBase, neutralActionButton, 'sm:flex-1 sm:min-w-[150px]')}
+                          onClick={() => openEditModal(listing)}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" /> Edit Listing
+                        </Button>
+                        <DeleteListingDialog
+                          onConfirm={() => handleDelete(listing.id)}
+                          buttonClassName={cn(actionButtonBase, destructiveActionButton, 'sm:flex-1 sm:min-w-[150px]')}
+                        />
+                      </div>
                     </div>
                   ) : (
                     /* Single-unit controls */
-                    <div className="flex items-center gap-2 w-full">
+                    <div className="flex w-full flex-wrap items-center justify-center gap-2">
                       <Button
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => handleToggleAvailability(listing)}
-                          disabled={
-                            updatingStatusId === listing.id ||
-                            !canToggleStatus
-                          }
+                        size="sm"
+                        variant="outline"
+                        className={cn(actionButtonBase, neutralActionButton, 'sm:flex-1 sm:min-w-[150px]')}
+                        onClick={() => handleToggleAvailability(listing)}
+                        disabled={
+                          updatingStatusId === listing.id ||
+                          !canToggleStatus
+                        }
                       >
                         {updatingStatusId === listing.id ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -686,15 +702,16 @@ export default function MyListingsPage() {
                         {listing.status === 'Vacant' ? 'Mark as rented' : 'Mark as available'}
                       </Button>
                       <Button
+                        size="sm"
                         variant="outline"
                         onClick={() => openEditModal(listing)}
-                        className="flex-1"
+                        className={cn(actionButtonBase, neutralActionButton, 'sm:flex-1 sm:min-w-[150px]')}
                       >
-                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                        <Pencil className="mr-2 h-4 w-4" /> Edit Listing
                       </Button>
                       <DeleteListingDialog
                         onConfirm={() => handleDelete(listing.id)}
-                        buttonClassName="flex-1"
+                        buttonClassName={cn(actionButtonBase, destructiveActionButton, 'sm:flex-1 sm:min-w-[150px]')}
                       />
                     </div>
                   )}

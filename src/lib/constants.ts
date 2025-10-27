@@ -177,6 +177,14 @@ const residentialFeatures = [
     'Outside Campus',
     'Shared Rooms',
     'Private Rooms',
+    'Smart Home Ready',
+    'Garden Lounge',
+    'Dual Parking Bays',
+    'Panic Room',
+    'Walk-in Closets',
+    'Heated Swimming Pool',
+    'Clubhouse Access',
+    '24/7 Concierge',
 ];
 
 const businessFeatures = [
@@ -190,6 +198,11 @@ const businessFeatures = [
     'Loading Bay',
     'Wi-Fi Available',
     'CCTV Surveillance',
+    'VIP Conference Suite',
+    'Private Boardroom',
+    'Showroom Lighting',
+    'Executive Reception',
+    'Dedicated Lift Access',
 ];
 
 export const allFeatureOptions = {
