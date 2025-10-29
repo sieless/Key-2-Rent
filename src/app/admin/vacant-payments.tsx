@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, orderBy, query, updateDoc, doc, type Timestamp, type DocumentData } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, updateDoc, doc, Timestamp, type DocumentData } from "firebase/firestore";
 import { useFirestore } from "@/firebase";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,6 +29,18 @@ type VacantPaymentRecord = {
   amountDue?: number | null;
   createdAt?: Timestamp | Date | null;
   status?: string;
+};
+
+const getCreatedAtDate = (value: VacantPaymentRecord["createdAt"]) => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (value instanceof Timestamp) return value.toDate();
+  return null;
+};
+
+const formatCreatedAt = (value: VacantPaymentRecord["createdAt"]) => {
+  const date = getCreatedAtDate(value);
+  return date ? date.toLocaleString() : null;
 };
 
 export function VacantPaymentsPanel() {
@@ -193,7 +205,7 @@ export function VacantPaymentsPanel() {
             records.map((record) => {
               const amountPaid = typeof record.amountDue === 'number' ? record.amountDue : record.amount;
               const amountDisplay = typeof amountPaid === 'number' ? amountPaid.toLocaleString() : '—';
-              const submittedDate = record.createdAt?.toDate?.() ? record.createdAt.toDate().toLocaleString() : null;
+              const submittedDate = formatCreatedAt(record.createdAt);
 
               return (
                 <div key={record.id} className="rounded-lg border bg-card/40 p-4 space-y-3">
@@ -276,7 +288,7 @@ export function VacantPaymentsPanel() {
                 records.map((record) => {
                   const amountPaid = typeof record.amountDue === 'number' ? record.amountDue : record.amount;
                   const amountDisplay = typeof amountPaid === 'number' ? amountPaid.toLocaleString() : '—';
-                  const submittedDate = record.createdAt?.toDate?.() ? record.createdAt.toDate().toLocaleString() : null;
+                  const submittedDate = formatCreatedAt(record.createdAt);
 
                   return (
                   <TableRow key={record.id}>
