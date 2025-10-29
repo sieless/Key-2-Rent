@@ -205,7 +205,7 @@ export function ListingDetailClient({ listingId }: ListingDetailClientProps) {
               <Card className="overflow-hidden">
                 <CardContent className="p-0">
                   {hasImages ? (
-                    <ImageGallery images={listing.images} propertyName={listing.name || listing.type} />
+                    <ImageGallery images={listing.images} alt={listing.name || listing.type} />
                   ) : (
                     <div className="w-full h-[320px] sm:h-[400px] bg-muted flex items-center justify-center">
                       <DefaultPlaceholder type={listing.type} status={listing.status} />
