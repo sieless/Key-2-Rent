@@ -8,6 +8,7 @@ import { InactivityWarningDialog } from '@/components/inactivity-warning-dialog'
 import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://timelaine.com'),
   title: 'Timelaine | Find Your Perfect Home in Kenya',
   description: 'Discover rental properties across Kenya. Browse bedsitters, apartments, houses, and commercial spaces in all 47 counties. Connect directly with landlords. Free to search!',
   keywords: ['Kenya rentals', 'property Kenya', 'houses for rent', 'apartments Kenya', 'bedsitter Kenya', 'rental homes', 'Nairobi rentals', 'Machakos rentals', 'Mombasa rentals'],
@@ -19,6 +20,8 @@ export const metadata: Metadata = {
     title: 'Timelaine - Property Rentals Across Kenya',
     description: 'Find your perfect rental home in Kenya. Search across all 47 counties.',
     type: 'website',
+    url: 'https://timelaine.com',
+    siteName: 'Timelaine',
     images: [
       {
         url: 'https://res.cloudinary.com/droibarvx/image/upload/w_1200,h_630/key2rent/logo-og.png',
@@ -33,6 +36,9 @@ export const metadata: Metadata = {
     title: 'Timelaine - Property Rentals Across Kenya',
     description: 'Find your perfect rental home in Kenya. Search across all 47 counties.',
     images: ['https://res.cloudinary.com/droibarvx/image/upload/w_1200,h_630/key2rent/logo-og.png'],
+  },
+  alternates: {
+    canonical: '/',
   },
 };
 
