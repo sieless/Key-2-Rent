@@ -208,7 +208,7 @@ export function ListingDetailClient({ listingId }: ListingDetailClientProps) {
                     <ImageGallery images={listing.images} alt={listing.name || listing.type} />
                   ) : (
                     <div className="w-full h-[320px] sm:h-[400px] bg-muted flex items-center justify-center">
-                      <DefaultPlaceholder type={listing.type} status={listing.status} />
+                      <DefaultPlaceholder type={listing.type} />
                     </div>
                   )}
 
