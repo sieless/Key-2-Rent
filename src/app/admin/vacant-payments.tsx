@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, orderBy, query, updateDoc, doc, type Timestamp } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, updateDoc, doc, type Timestamp, type DocumentData } from "firebase/firestore";
 import { useFirestore } from "@/firebase";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -100,7 +100,7 @@ export function VacantPaymentsPanel() {
         throw new Error('Firestore not available');
       }
 
-      await updateDoc(doc(db, "listings", listingId), updates as Record<string, unknown>);
+      await updateDoc(doc(db, "listings", listingId), updates as DocumentData);
       setRecords((prev) => prev.map((item) => (item.id === listingId ? { ...item, ...updates } : item)));
       toast({ title: "Update saved" });
     } catch (error) {
