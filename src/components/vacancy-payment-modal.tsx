@@ -165,7 +165,7 @@ export function VacancyPaymentModal({
 
   return (
     <Dialog open={open} onOpenChange={isConfirming ? () => undefined : onOpenChange}>
-      <DialogContent className="sm:max-w-lg w-full p-6">
+      <DialogContent className="sm:max-w-lg w-full p-6 max-h-[90vh] flex flex-col">
         <div className="flex justify-end">
           <DialogClose asChild>
             <Button variant="ghost" size="icon" aria-label="Close payment modal" disabled={isConfirming || isLoading}>
@@ -189,7 +189,7 @@ export function VacancyPaymentModal({
           </Link>
         </DialogHeader>
 
-        <div className="mt-4 space-y-4 max-h-[70vh] overflow-y-auto pr-1 sm:pr-2">
+        <div className="mt-4 flex-1 space-y-4 overflow-y-auto pr-1 sm:pr-2 pb-6">
           <section className="rounded-lg border border-border/60 bg-muted/40 p-4">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Amount due</p>
             <div className="mt-2 flex items-center justify-between">
@@ -318,7 +318,7 @@ export function VacancyPaymentModal({
           </div>
         </div>
 
-        <DialogFooter className="mt-6 flex flex-col gap-2 sm:flex-row">
+        <DialogFooter className="mt-4 flex flex-col gap-2 sm:flex-row shrink-0">
           <Button
             type="button"
             variant="outline"
