@@ -7,16 +7,13 @@ import { buildListingSummaryMessage, getListingSummary } from './listing-metadat
 
 const BASE_URL = 'https://timelaine.com';
 
-type PageProps = {
-  params: {
-    id: string;
-  };
-};
+type PageParams = Promise<{ id: string }> | { id: string };
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const listing = await getListingSummary(params.id);
+export async function generateMetadata({ params }: { params: PageParams }): Promise<Metadata> {
+  const { id } = await params;
+  const listing = await getListingSummary(id);
   const { title, description } = buildListingSummaryMessage(listing);
-  const canonical = `${BASE_URL}/listings/${params.id}`;
+  const canonical = `${BASE_URL}/listings/${id}`;
   const openGraphImages: { url: string }[] = [];
 
   if (listing?.images?.[0]) {
@@ -48,6 +45,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default function ListingDetailPage({ params }: PageProps) {
+export default function ListingDetailPage({ params }: { params: { id: string } }) {
   return <ListingDetailClient listingId={params.id} />;
 }
