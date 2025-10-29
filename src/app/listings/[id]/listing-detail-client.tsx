@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { doc } from 'firebase/firestore';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
@@ -42,6 +42,25 @@ type ListingDetailClientProps = {
   listingId: string;
 };
 
+function buildShareDetails(listing: Listing | null) {
+  const title = listing?.name?.trim() || (listing ? `${listing.type} in ${listing.location}` : 'Timelaine Listing');
+  const isForSale = listing?.status === 'For Sale';
+
+  const sharePrice = isForSale
+    ? typeof listing?.salePrice === 'number' ? listing.salePrice : undefined
+    : typeof listing?.price === 'number' ? listing.price : undefined;
+
+  const formattedSharePrice = typeof sharePrice === 'number'
+    ? ` KES ${sharePrice.toLocaleString()}${isForSale ? '' : '/month'}`
+    : '';
+
+  const shareText = sharePrice
+    ? `Check out this property listed at${formattedSharePrice}`
+    : 'Check out this property';
+
+  return { title, shareText, formattedSharePrice };
+}
+
 function ListingDetailSkeleton() {
   return (
     <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -80,6 +99,7 @@ function ListingDetailSkeleton() {
 
 export function ListingDetailClient({ listingId }: ListingDetailClientProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
 
   const db = useFirestore();
   const router = useRouter();
@@ -93,20 +113,20 @@ export function ListingDetailClient({ listingId }: ListingDetailClientProps) {
 
   const { data: listing, isLoading: loading, error: listingError } = useDoc<Listing>(listingRef);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setShareUrl(window.location.href);
+    }
+  }, []);
+
   const handleShare = async () => {
     const url = window.location.href;
-    const isForSale = listing?.status === 'For Sale';
-    const sharePrice = isForSale
-      ? typeof listing?.salePrice === 'number' ? listing?.salePrice : undefined
-      : typeof listing?.price === 'number' ? listing?.price : undefined;
-    const formattedSharePrice = typeof sharePrice === 'number'
-      ? ` KES ${sharePrice.toLocaleString()}${isForSale ? '' : '/month'}`
-      : '';
+    const shareDetails = buildShareDetails(listing || null);
     if (navigator.share) {
       try {
         await navigator.share({
-          title: listing?.name || `${listing?.type} in ${listing?.location}`,
-          text: sharePrice ? `Check out this property listed at${formattedSharePrice}` : 'Check out this property',
+          title: shareDetails.title,
+          text: shareDetails.shareText,
           url: url,
         });
       } catch {
@@ -116,8 +136,8 @@ export function ListingDetailClient({ listingId }: ListingDetailClientProps) {
       navigator.clipboard.writeText(url);
       toast({
         title: 'Link Copied!',
-        description: typeof sharePrice === 'number'
-          ? `Share this listing priced at${formattedSharePrice}.`
+        description: shareDetails.formattedSharePrice
+          ? `Share this listing priced at${shareDetails.formattedSharePrice}.`
           : 'Share this listing with others',
       });
     }
@@ -184,6 +204,7 @@ export function ListingDetailClient({ listingId }: ListingDetailClientProps) {
     ? `Ksh ${listing.salePrice.toLocaleString()}`
     : null;
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(listing.location + ", Machakos")}`;
+  const shareDetails = buildShareDetails(listing);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -362,10 +383,10 @@ export function ListingDetailClient({ listingId }: ListingDetailClientProps) {
                     </div>
 
                     <div className="space-y-4">
-                      <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                      <h2 className="text-lg font-semibold text-destructive flex items-center gap-2">
                         <FileText className="h-5 w-5" /> Additional information
                       </h2>
-                      <div className="space-y-3 text-sm text-muted-foreground">
+                      <div className="space-y-3 rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
                         <p>This property is listed on Timelaine by the landlord. Please verify details before making any payments.</p>
                         <p>Use the contact options below to reach out directly and schedule a viewing.</p>
                       </div>
@@ -424,6 +445,34 @@ export function ListingDetailClient({ listingId }: ListingDetailClientProps) {
                       <MapPin className="h-4 w-4" />
                       View on Google Maps
                     </Link>
+                    {(shareUrl || shareDetails.shareText) && (
+                      <div className="rounded-md border border-muted bg-muted/40 p-3 space-y-2">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">Share preview</p>
+                        <p className="text-sm text-muted-foreground">{shareDetails.shareText}</p>
+                        {shareUrl && (
+                          <div className="flex items-center gap-2">
+                            <span className="truncate font-mono text-xs text-foreground flex-1">{shareUrl}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(shareUrl);
+                                  toast({ title: 'Copied!', description: 'Share link copied to clipboard.' });
+                                } catch {
+                                  toast({ title: 'Copy failed', description: 'Please try again.', variant: 'destructive' });
+                                }
+                              }}
+                              aria-label="Copy share link"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
