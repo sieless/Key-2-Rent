@@ -18,11 +18,31 @@ import { FilterPanel } from '@/components/filter-panel';
 import { ListingGrid } from '@/components/listing-grid';
 import { AddListingModal } from '@/components/add-listing-modal';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { houseTypes, locations } from '@/lib/constants';
+
+const STATUS_OPTIONS = ['All', 'Vacant', 'Occupied', 'Available Soon', 'For Sale'] as const;
+type FilterStatus = (typeof STATUS_OPTIONS)[number];
+
+type FilterState = {
+  location: string;
+  type: string;
+  maxPrice: number;
+  status: FilterStatus;
+};
+
+const LOCATION_OPTIONS = ['All', ...locations.filter((loc) => loc !== 'All Counties')];
+
+const DEFAULT_FILTERS: FilterState = {
+  location: 'All',
+  type: 'All',
+  maxPrice: 50000,
+  status: 'All',
+};
 
 function LoadingSkeletons() {
   return (
@@ -59,17 +79,13 @@ export default function AllPropertiesPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [filters, setFilters] = useState({
-    location: 'All',
-    type: 'All',
-    maxPrice: 50000,
-    status: 'All',
-  });
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
 
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
 
 
   useEffect(() => {
@@ -94,8 +110,69 @@ export default function AllPropertiesPage() {
     return () => unsubscribe();
   }, [db]);
 
+  useEffect(() => {
+    if (!searchParams) return;
+
+    const typeParam = searchParams.get('type');
+    const locationParam = searchParams.get('location');
+    const statusParam = searchParams.get('status');
+    const maxPriceParam = searchParams.get('maxPrice');
+
+    const nextFilters: FilterState = {
+      location:
+        locationParam && LOCATION_OPTIONS.includes(locationParam)
+          ? locationParam
+          : DEFAULT_FILTERS.location,
+      type:
+        typeParam && houseTypes.includes(typeParam)
+          ? typeParam
+          : DEFAULT_FILTERS.type,
+      status:
+        statusParam && STATUS_OPTIONS.includes(statusParam as FilterStatus)
+          ? (statusParam as FilterStatus)
+          : DEFAULT_FILTERS.status,
+      maxPrice: DEFAULT_FILTERS.maxPrice,
+    };
+
+    if (maxPriceParam) {
+      const parsed = Number(maxPriceParam);
+      if (!Number.isNaN(parsed)) {
+        nextFilters.maxPrice = Math.min(Math.max(parsed, 3000), 100000);
+      }
+    }
+
+    setFilters((prev) => {
+      if (
+        prev.location === nextFilters.location &&
+        prev.type === nextFilters.type &&
+        prev.status === nextFilters.status &&
+        prev.maxPrice === nextFilters.maxPrice
+      ) {
+        return prev;
+      }
+      return nextFilters;
+    });
+  }, [searchParams]);
+
   const handleFilterChange = (name: string, value: string | number) => {
-    setFilters(prev => ({ ...prev, [name]: value }));
+    setFilters(prev => {
+      if (name === 'maxPrice' && typeof value === 'number') {
+        return { ...prev, maxPrice: Math.min(Math.max(value, 3000), 100000) };
+      }
+
+      if (name === 'status' && typeof value === 'string') {
+        if (!STATUS_OPTIONS.includes(value as FilterStatus)) {
+          return prev;
+        }
+        return { ...prev, status: value as FilterStatus };
+      }
+
+      if ((name === 'location' || name === 'type') && typeof value === 'string') {
+        return { ...prev, [name]: value } as FilterState;
+      }
+
+      return prev;
+    });
   };
 
   const handlePostClick = () => {

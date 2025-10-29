@@ -81,6 +81,12 @@ export function CategorizedListingGrid({
     },
   };
 
+  const sortedCategories = useMemo(() =>
+    Object.entries(categorizedListings).sort(([, aListings], [, bListings]) =>
+      bListings.length - aListings.length,
+    ),
+  [categorizedListings]);
+
   if (!showCategories) {
     // Simple grid without categorization
     return (
@@ -104,12 +110,6 @@ export function CategorizedListingGrid({
       </div>
     );
   }
-
-  const sortedCategories = useMemo(() => {
-    return Object.entries(categorizedListings).sort(([, aListings], [, bListings]) => {
-      return bListings.length - aListings.length;
-    });
-  }, [categorizedListings]);
 
   return (
     <div className="space-y-12">

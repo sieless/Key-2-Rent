@@ -11,6 +11,8 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { houseTypes, locations } from "@/lib/constants";
 
+const locationOptions = ['All', ...locations.filter((loc) => loc !== 'All Counties')];
+
 type FilterPanelProps = {
   filters: {
     location: string;
@@ -46,9 +48,9 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
               <SelectValue placeholder="Select location" />
             </SelectTrigger>
             <SelectContent>
-              {locations.map((loc) => (
+              {locationOptions.map((loc) => (
                 <SelectItem key={loc} value={loc}>
-                  {loc}
+                  {loc === 'All' ? 'All Locations' : loc}
                 </SelectItem>
               ))}
             </SelectContent>
