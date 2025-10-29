@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, orderBy, query, updateDoc, doc } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, updateDoc, doc, type Timestamp } from "firebase/firestore";
 import { useFirestore } from "@/firebase";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, Check, X, RotateCw, Loader2 } from "lucide-react";
+import { Check, X, RotateCw, Loader2 } from "lucide-react";
 import Image from "next/image";
 
 type VacantPaymentRecord = {
@@ -27,7 +27,8 @@ type VacantPaymentRecord = {
   location?: string;
   price?: number;
   amountDue?: number | null;
-  createdAt?: any;
+  createdAt?: Timestamp | Date | null;
+  status?: string;
 };
 
 export function VacantPaymentsPanel() {
@@ -50,12 +51,32 @@ export function VacantPaymentsPanel() {
         const q = query(collection(db, "listings"), orderBy("createdAt", "desc"));
         const snap = await getDocs(q);
         const data = snap.docs
-          .map((docSnap) => ({
-            id: docSnap.id,
-            listingId: docSnap.id,
-            ...(docSnap.data() as any),
-          }))
-          .filter((item) => item.status === "Vacant" && item.amountDue);
+          .map((docSnap) => {
+            const raw = docSnap.data() as Record<string, unknown>;
+            const amount = typeof raw.amount === 'number' ? raw.amount : 0;
+            const amountDue = typeof raw.amountDue === 'number' ? raw.amountDue : null;
+
+            return {
+              id: docSnap.id,
+              listingId: docSnap.id,
+              userId: typeof raw.userId === 'string' ? raw.userId : '',
+              amount,
+              paymentStatus: raw.paymentStatus as VacantPaymentRecord['paymentStatus'],
+              confirmationText: (raw.confirmationText as string | null) ?? null,
+              proofUploadUrl: (raw.proofUploadUrl as string | null) ?? null,
+              visibilityStatus: raw.visibilityStatus as VacantPaymentRecord['visibilityStatus'],
+              listingName: raw.listingName as string | undefined,
+              name: raw.name as string | undefined,
+              landlordName: raw.landlordName as string | undefined,
+              type: raw.type as string | undefined,
+              location: raw.location as string | undefined,
+              price: typeof raw.price === 'number' ? raw.price : undefined,
+              amountDue,
+              createdAt: raw.createdAt as Timestamp | Date | null | undefined,
+              status: raw.status as string | undefined,
+            } satisfies VacantPaymentRecord;
+          })
+          .filter((item) => item.status === "Vacant" && typeof item.amountDue === 'number');
         setRecords(data);
       } catch (error) {
         console.error("Failed to load vacant payments", error);
@@ -68,7 +89,10 @@ export function VacantPaymentsPanel() {
     loadRecords();
   }, [db, toast]);
 
-  const updateListing = async (listingId: string, updates: Partial<VacantPaymentRecord> & { visibilityStatus?: "hidden" | "visible" }) => {
+  const updateListing = async (
+    listingId: string,
+    updates: Partial<VacantPaymentRecord> & { visibilityStatus?: "hidden" | "visible" }
+  ) => {
     if (!db) return;
     setActionId(listingId);
     try {
@@ -76,7 +100,7 @@ export function VacantPaymentsPanel() {
         throw new Error('Firestore not available');
       }
 
-      await updateDoc(doc(db, "listings", listingId), updates as any);
+      await updateDoc(doc(db, "listings", listingId), updates as Record<string, unknown>);
       setRecords((prev) => prev.map((item) => (item.id === listingId ? { ...item, ...updates } : item)));
       toast({ title: "Update saved" });
     } catch (error) {
@@ -156,8 +180,73 @@ export function VacantPaymentsPanel() {
         <CardDescription>Review payment proofs and manage listing visibility.</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="rounded-md border overflow-x-auto">
-          <Table>
+        <div className="md:hidden space-y-4">
+          {loading ? (
+            <div className="rounded-lg border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground">
+              Loading payments...
+            </div>
+          ) : records.length === 0 ? (
+            <div className="rounded-lg border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground">
+              No vacant listing payments submitted yet.
+            </div>
+          ) : (
+            records.map((record) => {
+              const amountPaid = typeof record.amountDue === 'number' ? record.amountDue : record.amount;
+              const amountDisplay = typeof amountPaid === 'number' ? amountPaid.toLocaleString() : '—';
+              const submittedDate = record.createdAt?.toDate?.() ? record.createdAt.toDate().toLocaleString() : null;
+
+              return (
+                <div key={record.id} className="rounded-lg border bg-card/40 p-4 space-y-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-base font-semibold text-foreground">{record.name || record.listingName || 'Untitled listing'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {submittedDate ? `Submitted ${submittedDate}` : 'Submission date unavailable'}
+                      </p>
+                    </div>
+                    {statusBadge(record.paymentStatus)}
+                  </div>
+
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground/80">Listing ID</p>
+                    <p className="font-mono break-all text-foreground/80">{record.listingId}</p>
+                    <p><span className="font-medium text-foreground">Landlord:</span> {record.landlordName || 'Unknown'}</p>
+                    <p><span className="font-medium text-foreground">Location:</span> {record.location || 'Unknown'}</p>
+                    <p><span className="font-medium text-foreground">Amount:</span> Ksh {amountDisplay}</p>
+                  </div>
+
+                  {record.confirmationText && (
+                    <p className="text-xs text-muted-foreground border rounded p-2 bg-muted/40 whitespace-pre-wrap">
+                      {record.confirmationText}
+                    </p>
+                  )}
+
+                  {record.proofUploadUrl && (
+                    <div className="relative h-32 w-full overflow-hidden rounded border">
+                      <Image
+                        src={record.proofUploadUrl}
+                        alt="Payment proof"
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={record.visibilityStatus === 'visible' ? 'default' : 'outline'}>
+                      {record.visibilityStatus === 'visible' ? 'Visible' : 'Hidden'}
+                    </Badge>
+                    {actionButtons(record)}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="hidden md:block rounded-md border overflow-x-auto">
+          <Table className="min-w-[900px] text-sm">
             <TableHeader>
               <TableRow>
                 <TableHead>Listing</TableHead>

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { collection, getDocs, deleteDoc, doc, updateDoc, query, where, writeBatch } from 'firebase/firestore';
+import { useState, useEffect, useCallback } from 'react';
+import { collection, getDocs, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { type UserProfile } from '@/types';
 import {
@@ -40,32 +40,21 @@ export function UsersManagementTable() {
   const db = useFirestore();
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  const fetchUsers = useCallback(async () => {
+    if (!db) {
+      console.warn('UsersTable: Firestore unavailable.');
+      setLoading(false);
+      return;
+    }
 
-  useEffect(() => {
-    const filtered = users.filter(
-      (user) =>
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredUsers(filtered);
-  }, [searchTerm, users]);
+    setLoading(true);
 
-  async function fetchUsers() {
     try {
-      if (!db) {
-        console.warn('UsersTable: Firestore unavailable.');
-        setLoading(false);
-        return;
-      }
-
       const usersSnap = await getDocs(collection(db, 'users'));
-      const usersData = usersSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as UserProfile[];
+      const usersData = usersSnap.docs.map<UserProfile>((docSnap) => {
+        const data = docSnap.data() as Omit<UserProfile, 'id'>;
+        return { id: docSnap.id, ...data };
+      });
       setUsers(usersData);
       setFilteredUsers(usersData);
     } catch (error) {
@@ -78,7 +67,20 @@ export function UsersManagementTable() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [db, toast]);
+
+  useEffect(() => {
+    void fetchUsers();
+  }, [fetchUsers]);
+
+  useEffect(() => {
+    const filtered = users.filter(
+      (user) =>
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredUsers(filtered);
+  }, [searchTerm, users]);
 
   async function handleDeleteUser(user: UserProfile) {
     setActionLoading(true);
@@ -109,7 +111,7 @@ export function UsersManagementTable() {
       });
 
       // Refresh users list
-      fetchUsers();
+      await fetchUsers();
     } catch (error) {
       console.error('Error deleting user:', error);
       toast({
@@ -141,7 +143,7 @@ export function UsersManagementTable() {
       });
 
       // Refresh users list
-      fetchUsers();
+      await fetchUsers();
     } catch (error) {
       console.error('Error updating user:', error);
       toast({
@@ -154,10 +156,17 @@ export function UsersManagementTable() {
     }
   }
 
-  function formatDate(timestamp: any) {
+  function formatDate(timestamp: UserProfile['createdAt'] | Date | undefined | null) {
     if (!timestamp) return 'N/A';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    if (timestamp instanceof Date) {
+      return timestamp.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+    if ('toDate' in timestamp && typeof timestamp.toDate === 'function') {
+      return timestamp
+        .toDate()
+        .toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+    return 'N/A';
   }
 
   if (loading) {
@@ -180,19 +189,79 @@ export function UsersManagementTable() {
         <CardHeader>
           <CardTitle>Users Management</CardTitle>
           <CardDescription>Manage user accounts and permissions</CardDescription>
-          <div className="flex items-center gap-2 mt-4">
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search users by email or name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
+              className="w-full sm:max-w-xs"
             />
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
+          <div className="md:hidden space-y-4">
+            {filteredUsers.length === 0 ? (
+              <div className="rounded-lg border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground">
+                No users found
+              </div>
+            ) : (
+              filteredUsers.map((user) => (
+                <div key={user.id} className="rounded-lg border bg-card/40 p-4 space-y-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-base font-semibold text-foreground">{user.email}</p>
+                      <p className="text-xs text-muted-foreground">Joined {formatDate(user.createdAt)}</p>
+                    </div>
+                    {user.suspended ? (
+                      <Badge variant="destructive">Suspended</Badge>
+                    ) : (
+                      <Badge variant="default">Active</Badge>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">{user.name || 'No name provided'}</span>
+                    <span className="text-xs uppercase tracking-wide text-muted-foreground/80">{user.accountType === 'landlord' ? 'Landlord' : 'Renter'}</span>
+                    <span className="text-xs text-muted-foreground/80">Listings: {user.listings?.length || 0}</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={user.suspended ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleToggleSuspend(user)}
+                      disabled={actionLoading}
+                    >
+                      {user.suspended ? (
+                        <>
+                          <CheckCircle className="mr-1 h-3 w-3" /> Unsuspend
+                        </>
+                      ) : (
+                        <>
+                          <Ban className="mr-1 h-3 w-3" /> Suspend
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedUser(user);
+                        setDeleteDialogOpen(true);
+                      }}
+                      disabled={actionLoading}
+                    >
+                      <Trash2 className="mr-1 h-3 w-3" /> Delete
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="hidden md:block rounded-md border overflow-x-auto">
+            <Table className="min-w-[720px] text-sm">
               <TableHeader>
                 <TableRow>
                   <TableHead>Email</TableHead>

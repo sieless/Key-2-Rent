@@ -209,8 +209,8 @@ export function ListingDetailClient({ listingId }: ListingDetailClientProps) {
   return (
     <div className="flex flex-col min-h-screen">
       <Header onPostClick={handlePostClick} />
-      <main className="flex-grow bg-background">
-        <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <main className="flex-grow bg-background overflow-x-hidden">
+        <div className="max-w-screen-lg mx-auto w-full py-8 px-3 sm:px-6 lg:px-8">
           <Button
             variant="ghost"
             size="sm"
@@ -451,7 +451,7 @@ export function ListingDetailClient({ listingId }: ListingDetailClientProps) {
                         <p className="text-sm text-muted-foreground">{shareDetails.shareText}</p>
                         {shareUrl && (
                           <div className="flex items-center gap-2">
-                            <span className="truncate font-mono text-xs text-foreground flex-1">{shareUrl}</span>
+                            <span className="font-mono text-xs text-foreground flex-1 break-all">{shareUrl}</span>
                             <Button
                               type="button"
                               variant="ghost"

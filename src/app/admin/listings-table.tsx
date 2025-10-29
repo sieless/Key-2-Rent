@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { collection, getDocs, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useUser } from '@/firebase';
+import { useState, useEffect, useCallback } from 'react';
+import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
 import { type Listing } from '@/types';
 import {
   Table,
@@ -32,7 +32,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, ExternalLink, Search, Loader2, Eye, Copy } from 'lucide-react';
+import { Trash2, Search, Loader2, Eye, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
@@ -49,13 +49,43 @@ export function ListingsManagementTable() {
   const [actionLoading, setActionLoading] = useState(false);
   const db = useFirestore();
   const { toast } = useToast();
-  const { user } = useUser();
 
-  const getStatusLabel = (status: Listing['status']) => status;
+  const fetchListings = useCallback(async () => {
+    if (!db) {
+      console.warn('ListingsTable: Firestore unavailable.');
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const listingsSnap = await getDocs(collection(db, 'listings'));
+      const listingsData = listingsSnap.docs.map((docSnap) => {
+        const data = docSnap.data() as Listing;
+        return {
+          adminListingId: data.adminListingId ?? docSnap.id,
+          ...data,
+          id: docSnap.id,
+        } satisfies Listing;
+      });
+      setListings(listingsData);
+      setFilteredListings(listingsData);
+    } catch (error) {
+      console.error('Error fetching listings:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch listings',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [db, toast]);
 
   useEffect(() => {
-    fetchListings();
-  }, []);
+    void fetchListings();
+  }, [fetchListings]);
 
   useEffect(() => {
     let filtered = listings;
@@ -83,37 +113,6 @@ export function ListingsManagementTable() {
     setFilteredListings(filtered);
   }, [searchTerm, typeFilter, statusFilter, listings]);
 
-  async function fetchListings() {
-    if (!db) {
-      console.warn('ListingsTable: Firestore unavailable.');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const listingsSnap = await getDocs(collection(db, 'listings'));
-      const listingsData = listingsSnap.docs.map((docSnap) => {
-        const data = docSnap.data() as Listing;
-        return {
-          adminListingId: data.adminListingId ?? docSnap.id,
-          ...data,
-          id: docSnap.id,
-        } satisfies Listing;
-      });
-      setListings(listingsData);
-      setFilteredListings(listingsData);
-    } catch (error) {
-      console.error('Error fetching listings:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch listings',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function handleDeleteListing(listing: Listing) {
     setActionLoading(true);
     try {
@@ -129,7 +128,7 @@ export function ListingsManagementTable() {
       });
 
       // Refresh listings list
-      fetchListings();
+      await fetchListings();
     } catch (error) {
       console.error('Error deleting listing:', error);
       toast({
@@ -141,36 +140,6 @@ export function ListingsManagementTable() {
       setActionLoading(false);
       setDeleteDialogOpen(false);
       setSelectedListing(null);
-    }
-  }
-
-  async function handleUpdateStatus(listingId: string, newStatus: Listing['status']) {
-    setActionLoading(true);
-    try {
-      if (!db) {
-        throw new Error('Firestore not available');
-      }
-
-      await updateDoc(doc(db, 'listings', listingId), {
-        status: newStatus,
-      });
-
-      toast({
-        title: 'Success',
-        description: `Listing status updated to ${newStatus}`,
-      });
-
-      // Refresh listings list
-      fetchListings();
-    } catch (error) {
-      console.error('Error updating listing:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update listing status',
-        variant: 'destructive',
-      });
-    } finally {
-      setActionLoading(false);
     }
   }
 
@@ -193,7 +162,7 @@ export function ListingsManagementTable() {
         description: `${listing.name || listing.type} is now visible to renters.`,
       });
 
-      fetchListings();
+      await fetchListings();
     } catch (error) {
       console.error('Error approving listing:', error);
       toast({
@@ -232,7 +201,7 @@ export function ListingsManagementTable() {
         description: `${listing.name || listing.type} has been marked as rejected.`,
       });
 
-      fetchListings();
+      await fetchListings();
     } catch (error) {
       console.error('Error rejecting listing:', error);
       toast({
@@ -245,10 +214,17 @@ export function ListingsManagementTable() {
     }
   }
 
-  function formatDate(timestamp: any) {
+  function formatDate(timestamp: Listing['createdAt'] | Date | undefined | null) {
     if (!timestamp) return 'N/A';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    if (timestamp instanceof Date) {
+      return timestamp.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+    if ('toDate' in timestamp && typeof timestamp.toDate === 'function') {
+      return timestamp
+        .toDate()
+        .toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+    return 'N/A';
   }
 
   const pendingListings = listings.filter((listing) => listing.approvalStatus === 'pending');
@@ -378,8 +354,89 @@ export function ListingsManagementTable() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
+          <div className="md:hidden space-y-4">
+            {filteredListings.length === 0 ? (
+              <div className="rounded-lg border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground">
+                No listings found
+              </div>
+            ) : (
+              filteredListings.map((listing) => (
+                <div key={listing.id} className="rounded-lg border bg-card/40 p-4 space-y-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-base font-semibold text-foreground">
+                        {listing.name || `${listing.type} in ${listing.location}`}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{formatDate(listing.createdAt)}</p>
+                    </div>
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold',
+                        listing.visibilityStatus === 'visible'
+                          ? 'bg-secondary text-secondary-foreground'
+                          : 'text-foreground'
+                      )}
+                    >
+                      {listing.status}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">{listing.location}</span>
+                    <span className="text-xs uppercase tracking-wide text-muted-foreground/80">{listing.type}</span>
+                    <span className="font-semibold text-foreground">
+                      Ksh {listing.price.toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-mono break-all">
+                      {listing.adminListingId ?? listing.id}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(listing.adminListingId ?? listing.id);
+                          toast({ title: 'Copied!', description: 'Property ID copied to clipboard.' });
+                        } catch {
+                          toast({ title: 'Copy failed', description: 'Try again.', variant: 'destructive' });
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 text-primary hover:underline"
+                    >
+                      <Copy className="h-3 w-3" />
+                      Copy ID
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/listings/${listing.id}`} target="_blank">
+                        <Eye className="mr-1 h-3 w-3" />
+                        View
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedListing(listing);
+                        setDeleteDialogOpen(true);
+                      }}
+                      disabled={actionLoading}
+                    >
+                      <Trash2 className="mr-1 h-3 w-3" />
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="hidden md:block rounded-md border overflow-x-auto">
+            <Table className="min-w-[720px] text-sm">
               <TableHeader>
                 <TableRow>
                   <TableHead>Property</TableHead>

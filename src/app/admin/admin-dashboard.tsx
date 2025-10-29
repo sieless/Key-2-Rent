@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, getDocs, query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, type Timestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,8 +11,8 @@ import { PaymentSettingsPanel } from './payment-settings';
 import { LandlordApprovalsPanel } from './landlord-approvals';
 import { FeaturedPropertiesAdminPanel } from './featured-properties-panel';
 import { VacantPaymentsPanel } from './vacant-payments';
-import { Users, Home, TrendingUp, MapPin, Building2, Activity, DollarSign } from 'lucide-react';
-import { type AdminStats } from '@/types';
+import { Users, Home, MapPin, Building2, DollarSign } from 'lucide-react';
+import { type AdminStats, type Listing, type UserProfile } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function AdminDashboard() {
@@ -36,6 +36,17 @@ export function AdminDashboard() {
       return;
     }
 
+    const toDate = (value: Timestamp | Date | null | undefined): Date | null => {
+      if (!value) return null;
+      if (value instanceof Date) {
+        return value;
+      }
+      if ('toDate' in value && typeof value.toDate === 'function') {
+        return value.toDate();
+      }
+      return null;
+    };
+
     async function fetchStats() {
       try {
         // Fetch users
@@ -47,18 +58,24 @@ export function AdminDashboard() {
         }
 
         const usersSnap = await getDocs(collection(firestore, 'users'));
-        const users = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const users = usersSnap.docs.map<UserProfile>((docSnap) => {
+          const data = docSnap.data() as Omit<UserProfile, 'id'>;
+          return { id: docSnap.id, ...data };
+        });
 
         // Fetch listings
         const listingsSnap = await getDocs(collection(firestore, 'listings'));
-        const listings = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const listings = listingsSnap.docs.map<Listing>((docSnap) => {
+          const data = docSnap.data() as Omit<Listing, 'id'>;
+          return { id: docSnap.id, ...data };
+        });
 
         // Calculate stats
         const listingsByType: Record<string, number> = {};
         const listingsByLocation: Record<string, number> = {};
         const listingsByStatus: Record<string, number> = {};
 
-        listings.forEach((listing: any) => {
+        listings.forEach((listing) => {
           listingsByType[listing.type] = (listingsByType[listing.type] || 0) + 1;
           listingsByLocation[listing.location] = (listingsByLocation[listing.location] || 0) + 1;
           listingsByStatus[listing.status] = (listingsByStatus[listing.status] || 0) + 1;
@@ -68,16 +85,14 @@ export function AdminDashboard() {
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-        const recentUsers = users.filter((user: any) => {
-          if (!user.createdAt) return false;
-          const createdAt = user.createdAt.toDate ? user.createdAt.toDate() : new Date(user.createdAt);
-          return createdAt >= sevenDaysAgo;
+        const recentUsers = users.filter((user) => {
+          const createdAt = toDate(user.createdAt ?? null);
+          return createdAt ? createdAt >= sevenDaysAgo : false;
         }).length;
 
-        const recentListings = listings.filter((listing: any) => {
-          if (!listing.createdAt) return false;
-          const createdAt = listing.createdAt.toDate ? listing.createdAt.toDate() : new Date(listing.createdAt);
-          return createdAt >= sevenDaysAgo;
+        const recentListings = listings.filter((listing) => {
+          const createdAt = toDate(listing.createdAt);
+          return createdAt ? createdAt >= sevenDaysAgo : false;
         }).length;
 
         setStats({
@@ -101,7 +116,7 @@ export function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="container mx-auto py-8 px-4">
+      <div className="mx-auto w-full max-w-6xl py-8 px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <Skeleton className="h-10 w-64 mb-2" />
           <Skeleton className="h-4 w-96" />
@@ -116,7 +131,7 @@ export function AdminDashboard() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="mx-auto w-full max-w-6xl py-8 px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-foreground mb-2">Admin Dashboard</h1>
         <p className="text-muted-foreground">
@@ -232,7 +247,7 @@ export function AdminDashboard() {
 
       {/* Management Tables */}
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex flex-wrap gap-2 justify-start overflow-x-auto">
           <TabsTrigger value="users">
             <Users className="mr-2 h-4 w-4" />
             Users Management

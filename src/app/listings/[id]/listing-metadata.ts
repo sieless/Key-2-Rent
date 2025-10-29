@@ -16,6 +16,10 @@ export const getListingSummary = cache(async (id: string): Promise<ListingSummar
 
   try {
     const firestore = getAdminFirestore();
+    if (!firestore) {
+      console.warn('listing-metadata: admin Firestore unavailable, returning fallback metadata');
+      return null;
+    }
     const snapshot = await firestore.collection('listings').doc(id).get();
     if (!snapshot.exists) {
       return null;

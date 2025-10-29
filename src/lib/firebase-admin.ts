@@ -45,7 +45,7 @@ export function getFirebaseAdmin() {
 export function getAdminFirestore() {
   const app = getFirebaseAdmin();
   if (!app) {
-    throw new Error('Firebase Admin not initialized');
+    return null;
   }
   return getFirestore(app);
 }
@@ -54,7 +54,7 @@ export function getAdminFirestore() {
 export function getAdminAuth() {
   const app = getFirebaseAdmin();
   if (!app) {
-    throw new Error('Firebase Admin not initialized');
+    return null;
   }
   return getAuth(app);
 }
