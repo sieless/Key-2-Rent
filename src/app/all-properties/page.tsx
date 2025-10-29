@@ -3,7 +3,7 @@
 // Force dynamic rendering (disable static generation)
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useMemo } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
   onSnapshot,
@@ -19,6 +19,7 @@ import { ListingGrid } from '@/components/listing-grid';
 import { AddListingModal } from '@/components/add-listing-modal';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter, useSearchParams } from 'next/navigation';
+import type { ReadonlyURLSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -43,6 +44,50 @@ const DEFAULT_FILTERS: FilterState = {
   maxPrice: 50000,
   status: 'All',
 };
+
+function parseFiltersFromSearchParams(searchParams: ReadonlyURLSearchParams): FilterState {
+  const typeParam = searchParams.get('type');
+  const locationParam = searchParams.get('location');
+  const statusParam = searchParams.get('status');
+  const maxPriceParam = searchParams.get('maxPrice');
+
+  const nextFilters: FilterState = {
+    location:
+      locationParam && LOCATION_OPTIONS.includes(locationParam)
+        ? locationParam
+        : DEFAULT_FILTERS.location,
+    type:
+      typeParam && houseTypes.includes(typeParam)
+        ? typeParam
+        : DEFAULT_FILTERS.type,
+    status:
+      statusParam && STATUS_OPTIONS.includes(statusParam as FilterStatus)
+        ? (statusParam as FilterStatus)
+        : DEFAULT_FILTERS.status,
+    maxPrice: DEFAULT_FILTERS.maxPrice,
+  };
+
+  if (maxPriceParam) {
+    const parsed = Number(maxPriceParam);
+    if (!Number.isNaN(parsed)) {
+      nextFilters.maxPrice = Math.min(Math.max(parsed, 3000), 100000);
+    }
+  }
+
+  return nextFilters;
+}
+
+function FiltersInitializer({ applyFilters }: { applyFilters: (filters: FilterState) => void }) {
+  const searchParams = useSearchParams();
+
+  const nextFilters = useMemo(() => parseFiltersFromSearchParams(searchParams), [searchParams]);
+
+  useEffect(() => {
+    applyFilters(nextFilters);
+  }, [applyFilters, nextFilters]);
+
+  return null;
+}
 
 function LoadingSkeletons() {
   return (
@@ -85,7 +130,6 @@ export default function AllPropertiesPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
-  const searchParams = useSearchParams();
 
 
   useEffect(() => {
@@ -110,38 +154,8 @@ export default function AllPropertiesPage() {
     return () => unsubscribe();
   }, [db]);
 
-  useEffect(() => {
-    if (!searchParams) return;
-
-    const typeParam = searchParams.get('type');
-    const locationParam = searchParams.get('location');
-    const statusParam = searchParams.get('status');
-    const maxPriceParam = searchParams.get('maxPrice');
-
-    const nextFilters: FilterState = {
-      location:
-        locationParam && LOCATION_OPTIONS.includes(locationParam)
-          ? locationParam
-          : DEFAULT_FILTERS.location,
-      type:
-        typeParam && houseTypes.includes(typeParam)
-          ? typeParam
-          : DEFAULT_FILTERS.type,
-      status:
-        statusParam && STATUS_OPTIONS.includes(statusParam as FilterStatus)
-          ? (statusParam as FilterStatus)
-          : DEFAULT_FILTERS.status,
-      maxPrice: DEFAULT_FILTERS.maxPrice,
-    };
-
-    if (maxPriceParam) {
-      const parsed = Number(maxPriceParam);
-      if (!Number.isNaN(parsed)) {
-        nextFilters.maxPrice = Math.min(Math.max(parsed, 3000), 100000);
-      }
-    }
-
-    setFilters((prev) => {
+  const applyFiltersFromParams = useCallback((nextFilters: FilterState) => {
+    setFilters(prev => {
       if (
         prev.location === nextFilters.location &&
         prev.type === nextFilters.type &&
@@ -152,7 +166,7 @@ export default function AllPropertiesPage() {
       }
       return nextFilters;
     });
-  }, [searchParams]);
+  }, []);
 
   const handleFilterChange = (name: string, value: string | number) => {
     setFilters(prev => {
@@ -236,6 +250,9 @@ export default function AllPropertiesPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header onPostClick={handlePostClick} />
+      <Suspense fallback={null}>
+        <FiltersInitializer applyFilters={applyFiltersFromParams} />
+      </Suspense>
       <main className="flex-grow w-full">
         <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
           <Button variant="ghost" asChild className="mb-6">
