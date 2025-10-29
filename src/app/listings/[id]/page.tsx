@@ -7,9 +7,9 @@ import { buildListingSummaryMessage, getListingSummary } from './listing-metadat
 
 const BASE_URL = 'https://timelaine.com';
 
-type PageParams = Promise<{ id: string }> | { id: string };
+type ParamsPromise = Promise<{ id: string }>;
 
-export async function generateMetadata({ params }: { params: PageParams }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: ParamsPromise }): Promise<Metadata> {
   const { id } = await params;
   const listing = await getListingSummary(id);
   const { title, description } = buildListingSummaryMessage(listing);
@@ -45,6 +45,7 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   };
 }
 
-export default function ListingDetailPage({ params }: { params: { id: string } }) {
-  return <ListingDetailClient listingId={params.id} />;
+export default async function ListingDetailPage({ params }: { params: ParamsPromise }) {
+  const { id } = await params;
+  return <ListingDetailClient listingId={id} />;
 }
