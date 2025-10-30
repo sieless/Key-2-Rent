@@ -37,6 +37,8 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 
+const LISTING_STATUS_OPTIONS: Listing['status'][] = ['Vacant', 'Occupied', 'Available Soon', 'For Sale'];
+
 export function ListingsManagementTable() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [filteredListings, setFilteredListings] = useState<Listing[]>([]);
@@ -47,6 +49,7 @@ export function ListingsManagementTable() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const db = useFirestore();
   const { toast } = useToast();
 
@@ -112,6 +115,42 @@ export function ListingsManagementTable() {
 
     setFilteredListings(filtered);
   }, [searchTerm, typeFilter, statusFilter, listings]);
+
+  async function handleStatusChange(listing: Listing, newStatus: Listing['status']) {
+    if (newStatus === listing.status) {
+      return;
+    }
+
+    setStatusUpdatingId(listing.id);
+
+    try {
+      if (!db) {
+        throw new Error('Firestore not available');
+      }
+
+      await updateDoc(doc(db, 'listings', listing.id), {
+        status: newStatus,
+      });
+
+      setListings((prev) =>
+        prev.map((item) => (item.id === listing.id ? { ...item, status: newStatus } : item))
+      );
+
+      toast({
+        title: 'Status updated',
+        description: `${listing.name || listing.type} marked as ${newStatus}.`,
+      });
+    } catch (error) {
+      console.error('Error updating listing status:', error);
+      toast({
+        title: 'Update failed',
+        description: 'Could not update listing status. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  }
 
   async function handleDeleteListing(listing: Listing) {
     setActionLoading(true);
@@ -229,6 +268,9 @@ export function ListingsManagementTable() {
 
   const pendingListings = listings.filter((listing) => listing.approvalStatus === 'pending');
   const uniqueTypes = Array.from(new Set(listings.map((l) => l.type)));
+  const uniqueStatuses = Array.from(new Set(listings.map((l) => l.status))).filter(
+    (status): status is Listing['status'] => Boolean(status)
+  );
 
   if (loading) {
     return (
@@ -345,10 +387,11 @@ export function ListingsManagementTable() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending_approval">Pending Approval</SelectItem>
-                <SelectItem value="published">Published</SelectItem>
-                <SelectItem value="rented">Rented</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
+                {uniqueStatuses.map((statusOption) => (
+                  <SelectItem key={statusOption} value={statusOption}>
+                    {statusOption}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -370,14 +413,33 @@ export function ListingsManagementTable() {
                       <p className="text-xs text-muted-foreground">{formatDate(listing.createdAt)}</p>
                     </div>
                     <span
-                      className={cn(
-                        'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold',
-                        listing.visibilityStatus === 'visible'
-                          ? 'bg-secondary text-secondary-foreground'
-                          : 'text-foreground'
-                      )}
+                      className="flex flex-col items-start gap-2"
                     >
-                      {listing.status}
+                      <Select
+                        value={listing.status}
+                        onValueChange={(value) =>
+                          handleStatusChange(listing, value as Listing['status'])
+                        }
+                        disabled={statusUpdatingId === listing.id}
+                      >
+                        <SelectTrigger
+                          className={cn(
+                            'h-8 w-full min-w-[160px] rounded-full border px-3 text-xs font-semibold capitalize',
+                            listing.visibilityStatus === 'visible'
+                              ? 'bg-secondary text-secondary-foreground'
+                              : 'text-foreground'
+                          )}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LISTING_STATUS_OPTIONS.map((statusOption) => (
+                            <SelectItem key={statusOption} value={statusOption}>
+                              {statusOption}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </span>
                   </div>
 
@@ -490,16 +552,31 @@ export function ListingsManagementTable() {
                       <TableCell>{listing.location}</TableCell>
                       <TableCell>Ksh {listing.price.toLocaleString()}</TableCell>
                       <TableCell>
-                        <span
-                          className={cn(
-                            'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold',
-                            listing.visibilityStatus === 'visible'
-                              ? 'bg-secondary text-secondary-foreground'
-                              : 'text-foreground'
-                          )}
+                        <Select
+                          value={listing.status}
+                          onValueChange={(value) =>
+                            handleStatusChange(listing, value as Listing['status'])
+                          }
+                          disabled={statusUpdatingId === listing.id}
                         >
-                          {listing.status}
-                        </span>
+                          <SelectTrigger
+                            className={cn(
+                              'h-8 w-[160px] rounded-full border px-3 text-xs font-semibold capitalize',
+                              listing.visibilityStatus === 'visible'
+                                ? 'bg-secondary text-secondary-foreground'
+                                : 'text-foreground'
+                            )}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {LISTING_STATUS_OPTIONS.map((statusOption) => (
+                              <SelectItem key={statusOption} value={statusOption}>
+                                {statusOption}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>{formatDate(listing.createdAt)}</TableCell>
                       <TableCell className="text-right">
