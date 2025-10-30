@@ -4,7 +4,7 @@
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, MapPin } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock } from 'lucide-react';
 import { useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -54,11 +54,24 @@ export function ContactClientPage() {
                 <a href="tel:0708674665" className="text-muted-foreground hover:text-primary transition-colors">0708674665</a>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <Mail className="h-6 w-6 text-primary" />
+            <div className="flex items-start gap-4">
+              <Mail className="h-6 w-6 text-primary mt-1" />
               <div>
                 <h3 className="font-semibold">Email</h3>
-                <a href="mailto:timelaine@gmail.com" className="text-muted-foreground hover:text-primary transition-colors">timelaine@gmail.com</a>
+                <div className="flex flex-col text-muted-foreground">
+                  <a
+                    href="mailto:info@timelaine.com"
+                    className="hover:text-primary transition-colors"
+                  >
+                    info@timelaine.com
+                  </a>
+                  <a
+                    href="mailto:ceo@timelaine.com"
+                    className="hover:text-primary transition-colors"
+                  >
+                    ceo@timelaine.com
+                  </a>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -66,6 +79,13 @@ export function ContactClientPage() {
               <div>
                 <h3 className="font-semibold">Office</h3>
                 <p className="text-muted-foreground">Kimutwa Building, Opp Kpipes (Lau Junction), Machakos Town</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <Clock className="h-6 w-6 text-primary" />
+              <div>
+                <h3 className="font-semibold">Business Hours</h3>
+                <p className="text-muted-foreground">Open</p>
               </div>
             </div>
           </CardContent>

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import Script from 'next/script';
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -42,6 +43,59 @@ export const metadata: Metadata = {
   },
 };
 
+const localBusinessSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'RealEstateAgent',
+  '@id': 'https://maps.google.com/?cid=10310265339563092206',
+  name: 'Timelaine',
+  url: 'https://timelaine.com',
+  image: 'https://res.cloudinary.com/droibarvx/image/upload/w_1200,h_630/key2rent/logo-og.png',
+  telephone: '+254708674665',
+  email: 'info@timelaine.com',
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: 'Kimutwa Building, Opp Kpipes (Lau Junction)',
+    addressLocality: 'Machakos',
+    addressRegion: 'Machakos County',
+    addressCountry: 'KE',
+  },
+  areaServed: {
+    '@type': 'City',
+    name: 'Machakos, Kenya',
+  },
+  openingHoursSpecification: [
+    {
+      '@type': 'OpeningHoursSpecification',
+      dayOfWeek: [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
+      ],
+      opens: '00:00',
+      closes: '23:59',
+    },
+  ],
+  sameAs: ['https://maps.google.com/?cid=10310265339563092206'],
+  contactPoint: [
+    {
+      '@type': 'ContactPoint',
+      contactType: 'customer service',
+      email: 'info@timelaine.com',
+      telephone: '+254708674665',
+    },
+    {
+      '@type': 'ContactPoint',
+      contactType: 'business inquiries',
+      email: 'ceo@timelaine.com',
+    },
+  ],
+  priceRange: 'KSh',
+} as const;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -65,6 +119,9 @@ export default function RootLayout({
             <Analytics />
           </ErrorBoundary>
         </ThemeProvider>
+        <Script id="local-business-schema" type="application/ld+json">
+          {JSON.stringify(localBusinessSchema)}
+        </Script>
       </body>
     </html>
   );
