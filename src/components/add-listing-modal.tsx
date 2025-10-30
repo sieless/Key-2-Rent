@@ -101,14 +101,7 @@ const listingSchema = z.object({
     required_error: 'Please select the availability status.',
   }),
   salePrice: z.coerce.number().optional().or(z.literal('')),
-  totalUnits: z.coerce.number().min(1, 'Total units must be at least 1.'),
   availableUnits: z.coerce.number().min(0, 'Available units cannot be negative.'),
-}).refine((data) => {
-  if (Number.isNaN(data.totalUnits) || Number.isNaN(data.availableUnits)) return true;
-  return data.availableUnits <= data.totalUnits;
-}, {
-  message: 'Available units cannot exceed total units.',
-  path: ['availableUnits'],
 }).refine((data) => {
   if (data.status === 'For Sale') {
     const numericSalePrice = Number(data.salePrice);
@@ -144,7 +137,6 @@ const createDefaultListingValues = (): ListingData => ({
   images: [],
   features: [],
   status: 'Available Soon',
-  totalUnits: 1,
   availableUnits: 1,
 });
 
@@ -162,7 +154,6 @@ const mapListingToFormValues = (item: Listing): ListingData => ({
   images: Array.isArray(item.images) ? [...item.images] : [],
   features: Array.isArray(item.features) ? [...item.features] : [],
   status: item.status,
-  totalUnits: typeof item.totalUnits === 'number' ? item.totalUnits : 1,
   availableUnits: typeof item.availableUnits === 'number' ? item.availableUnits : 0,
 });
 
@@ -313,7 +304,7 @@ export function AddListingModal({
         }
       });
 
-      const numericFields: Array<keyof ListingData> = ['price', 'deposit', 'depositMonths', 'totalUnits', 'availableUnits'];
+      const numericFields: Array<keyof ListingData> = ['price', 'deposit', 'depositMonths', 'availableUnits'];
 
       if (data.status === 'For Sale') {
         const salePriceValue = payload.salePrice;
@@ -702,50 +693,27 @@ export function AddListingModal({
                     />
                  )}
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="totalUnits"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Total Units (Optional)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="1"
-                            min="1"
-                            {...field}
-                          />
-                        </FormControl>
-                        <p className="text-xs text-muted-foreground">
-                          For multi-unit properties (apartments, hostels). Leave as 1 for single units.
-                        </p>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="availableUnits"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Vacant Units (Optional)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="1"
-                            min="0"
-                            {...field}
-                          />
-                        </FormControl>
-                        <p className="text-xs text-muted-foreground">
-                          How many units are currently available for rent?
-                        </p>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                <FormField
+                  control={form.control}
+                  name="availableUnits"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vacant Units (Optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="1"
+                          min="0"
+                          {...field}
+                        />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        How many units are currently available for rent?
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}
