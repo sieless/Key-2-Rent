@@ -12,10 +12,11 @@ import { cn, getPropertyIcon, getStatusClass } from '@/lib/utils';
 import { DefaultPlaceholder } from './default-placeholder';
 import { useListingFavorite } from '@/hooks/use-favorites';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { VacancyPaymentModal } from './vacancy-payment-modal';
+import { VacancyPaymentModal, type PaymentProofPayload } from './vacancy-payment-modal';
 import { getListingWhatsAppLink } from '@/lib/whatsapp';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 
 type ListingCardProps = {
@@ -28,8 +29,10 @@ export function ListingCard({ listing }: ListingCardProps) {
   const { isFavorited, toggle: toggleFavorite } = useListingFavorite(listing.id);
   const { toast } = useToast();
   const { user } = useUser();
+  const db = useFirestore();
   const router = useRouter();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [submittingPaymentProof, setSubmittingPaymentProof] = useState(false);
   const isContactable = Boolean(user && user.uid !== listing.userId);
   const isOwner = user?.uid === listing.userId;
   const paymentCleared = listing.paymentStatus === 'paid';
@@ -47,6 +50,76 @@ export function ListingCard({ listing }: ListingCardProps) {
   };
 
   const statusIcon = statusIconMap[listing.status];
+
+  const handlePaymentProofSubmit = async (proof: PaymentProofPayload) => {
+    if (!db) {
+      throw new Error('Database unavailable');
+    }
+
+    if (!user) {
+      throw new Error('You must be signed in to submit payment proof');
+    }
+
+    setSubmittingPaymentProof(true);
+
+    let proofUrl: string | null = listing.proofUploadUrl ?? null;
+    const confirmationText = proof.text?.trim() ?? '';
+
+    try {
+      if (proof.file) {
+        type UploadResponse = { url?: string; error?: string; message?: string };
+        const formData = new FormData();
+        formData.append('image', proof.file);
+
+        const uploadResponse = await fetch('/api/upload-image', {
+          method: 'POST',
+          body: formData,
+        });
+
+        let uploadJson: UploadResponse | null = null;
+        try {
+          uploadJson = (await uploadResponse.json()) as UploadResponse;
+        } catch (parseError) {
+          uploadJson = null;
+          console.error('Failed to parse payment proof upload response', parseError);
+        }
+
+        if (!uploadResponse.ok) {
+          const message =
+            (uploadJson && (uploadJson.error || uploadJson.message)) ||
+            'Failed to upload payment screenshot';
+          throw new Error(message);
+        }
+
+        if (!uploadJson || typeof uploadJson.url !== 'string') {
+          throw new Error('Upload response missing payment proof URL');
+        }
+
+        proofUrl = uploadJson.url;
+      }
+
+      await updateDoc(doc(db, 'listings', listing.id), {
+        confirmationText: confirmationText.length > 0 ? confirmationText : null,
+        proofUploadUrl: proofUrl ?? null,
+        paymentStatus: 'pending',
+        visibilityStatus: 'hidden',
+        paymentUpdatedAt: serverTimestamp(),
+      });
+
+      toast({
+        title: 'Payment proof submitted',
+        description: 'We will verify your transaction shortly.',
+      });
+
+      return { redirectUrl: `/payments/vacancy/${listing.id}` };
+    } catch (error) {
+      console.error('Failed to submit payment proof', error);
+      const message = error instanceof Error ? error.message : 'Failed to submit payment proof';
+      throw new Error(message);
+    } finally {
+      setSubmittingPaymentProof(false);
+    }
+  };
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigation to listing detail
@@ -315,7 +388,8 @@ export function ListingCard({ listing }: ListingCardProps) {
         listingStatus={listing.status}
         listingReference={listing.name || listing.location}
         successRedirectUrl={`/payments/vacancy/${listing.id}`}
-        onPaymentConfirmed={async () => ({ redirectUrl: `/payments/vacancy/${listing.id}` })}
+        onPaymentConfirmed={handlePaymentProofSubmit}
+        isLoading={submittingPaymentProof}
       />
     </>
   );

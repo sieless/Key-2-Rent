@@ -729,7 +729,7 @@ export function AddListingModal({
                     name="availableUnits"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Available Units (Optional)</FormLabel>
+                        <FormLabel>Vacant Units (Optional)</FormLabel>
                         <FormControl>
                           <Input
                             type="number"

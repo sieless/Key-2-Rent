@@ -17,6 +17,7 @@ import {
   setDoc,
   arrayRemove,
   orderBy,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
 import { type Listing, type UserAccountType } from '@/types';
@@ -43,7 +44,7 @@ import { DefaultPlaceholder } from '@/components/default-placeholder';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LandlordAnalytics } from './analytics';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { VacancyPaymentModal } from '@/components/vacancy-payment-modal';
+import { VacancyPaymentModal, type PaymentProofPayload } from '@/components/vacancy-payment-modal';
 import { isAdmin } from '@/lib/admin';
 
 function ListingSkeleton() {
@@ -100,6 +101,7 @@ export default function MyListingsPage() {
   const [listingForEdit, setListingForEdit] = useState<Listing | null>(null);
   const [paymentModalListing, setPaymentModalListing] = useState<Listing | null>(null);
   const [isUpdatingAccountType, setIsUpdatingAccountType] = useState(false);
+  const [submittingPaymentProof, setSubmittingPaymentProof] = useState(false);
 
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
@@ -124,6 +126,82 @@ export default function MyListingsPage() {
     setModalMode('edit');
     setListingForEdit(item);
     setIsModalOpen(true);
+  };
+
+  const handleVacancyPaymentProofSubmit = async (proof: PaymentProofPayload) => {
+    if (!db) {
+      throw new Error('Database unavailable');
+    }
+
+    if (!paymentModalListing) {
+      throw new Error('No listing selected for payment confirmation');
+    }
+
+    if (!user) {
+      throw new Error('User must be signed in to submit payment proof');
+    }
+
+    const listingId = paymentModalListing.id;
+    let proofUrl: string | null = paymentModalListing.proofUploadUrl ?? null;
+    const confirmationText = proof.text?.trim() ?? '';
+
+    setSubmittingPaymentProof(true);
+
+    try {
+      if (proof.file) {
+        type UploadResponse = { url?: string; error?: string; message?: string };
+        const formData = new FormData();
+        formData.append('image', proof.file);
+
+        const uploadResponse = await fetch('/api/upload-image', {
+          method: 'POST',
+          body: formData,
+        });
+
+        let uploadJson: UploadResponse | null = null;
+        try {
+          uploadJson = (await uploadResponse.json()) as UploadResponse;
+        } catch (parseError) {
+          uploadJson = null;
+          console.error('Failed to parse payment proof upload response', parseError);
+        }
+
+        if (!uploadResponse.ok) {
+          const message =
+            (uploadJson && (uploadJson.error || uploadJson.message)) ||
+            'Failed to upload payment screenshot';
+          throw new Error(message);
+        }
+
+        if (!uploadJson || typeof uploadJson.url !== 'string') {
+          throw new Error('Upload response missing payment proof URL');
+        }
+
+        proofUrl = uploadJson.url;
+      }
+
+      await updateDoc(doc(db, 'listings', listingId), {
+        confirmationText: confirmationText.length > 0 ? confirmationText : null,
+        proofUploadUrl: proofUrl ?? null,
+        paymentStatus: 'pending',
+        visibilityStatus: 'hidden',
+        paymentUpdatedAt: serverTimestamp(),
+      });
+
+      toast({
+        title: 'Payment proof submitted',
+        description: 'We will verify your transaction shortly.',
+      });
+
+      return { redirectUrl: `/payments/vacancy/${listingId}` };
+    } catch (error) {
+      console.error('Failed to submit vacancy payment proof', error);
+      const message =
+        error instanceof Error ? error.message : 'Failed to submit vacancy payment proof';
+      throw new Error(message);
+    } finally {
+      setSubmittingPaymentProof(false);
+    }
   };
 
   useEffect(() => {
@@ -766,7 +844,8 @@ export default function MyListingsPage() {
           monthlyRent={paymentModalListing.price}
           listingStatus={paymentModalListing.status}
           listingReference={paymentModalListing.name || paymentModalListing.location}
-          onPaymentConfirmed={async () => ({ redirectUrl: `/payments/vacancy/${paymentModalListing.id}` })}
+          onPaymentConfirmed={handleVacancyPaymentProofSubmit}
+          isLoading={submittingPaymentProof}
           successRedirectUrl={`/payments/vacancy/${paymentModalListing.id}`}
         />
       )}

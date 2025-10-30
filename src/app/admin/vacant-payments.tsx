@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { collection, getDocs, orderBy, query, updateDoc, doc, Timestamp, type DocumentData } from "firebase/firestore";
+import { useCallback, useEffect, useState } from "react";
+import { collection, getDoc, getDocs, orderBy, query, updateDoc, doc, Timestamp, type DocumentData } from "firebase/firestore";
 import { useFirestore } from "@/firebase";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -50,6 +50,62 @@ export function VacantPaymentsPanel() {
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
 
+  const resolveLandlordNames = useCallback(async (items: VacantPaymentRecord[]) => {
+    if (!db || items.length === 0) {
+      return items;
+    }
+
+    const uniqueIds = Array.from(
+      new Set(
+        items
+          .map((item) => item.userId)
+          .filter((userId): userId is string => Boolean(userId))
+      )
+    );
+
+    if (uniqueIds.length === 0) {
+      return items;
+    }
+
+    const landlordMap = new Map<string, string>();
+
+    await Promise.all(
+      uniqueIds.map(async (userId) => {
+        try {
+          const userSnap = await getDoc(doc(db, "users", userId));
+          if (!userSnap.exists()) {
+            return;
+          }
+
+          const data = userSnap.data() as Record<string, unknown>;
+          const displayName =
+            (typeof data.fullName === "string" && data.fullName.trim()) ||
+            (typeof data.name === "string" && data.name.trim()) ||
+            (typeof data.displayName === "string" && data.displayName.trim()) ||
+            (typeof data.email === "string" && data.email.trim()) ||
+            userId;
+
+          landlordMap.set(userId, displayName);
+        } catch (error) {
+          console.error(`Failed to resolve landlord name for ${userId}`, error);
+        }
+      })
+    );
+
+    return items.map((item) => {
+      if (item.landlordName && item.landlordName !== "Unknown" && item.landlordName !== "Unknown landlord") {
+        return item;
+      }
+
+      const resolvedName = item.userId ? landlordMap.get(item.userId) : undefined;
+
+      return {
+        ...item,
+        landlordName: resolvedName ?? item.landlordName ?? "Unknown landlord",
+      };
+    });
+  }, [db]);
+
   useEffect(() => {
     if (!db) return;
 
@@ -89,7 +145,8 @@ export function VacantPaymentsPanel() {
             } satisfies VacantPaymentRecord;
           })
           .filter((item) => item.status === "Vacant" && typeof item.amountDue === 'number');
-        setRecords(data);
+        const withLandlords = await resolveLandlordNames(data);
+        setRecords(withLandlords);
       } catch (error) {
         console.error("Failed to load vacant payments", error);
         toast({ title: "Fetch failed", description: "Could not load vacant payment records", variant: "destructive" });
@@ -99,7 +156,7 @@ export function VacantPaymentsPanel() {
     }
 
     loadRecords();
-  }, [db, toast]);
+  }, [db, toast, resolveLandlordNames]);
 
   const updateListing = async (
     listingId: string,
@@ -189,7 +246,9 @@ export function VacantPaymentsPanel() {
     <Card>
       <CardHeader>
         <CardTitle>Vacant Listing Payments</CardTitle>
-        <CardDescription>Review payment proofs and manage listing visibility.</CardDescription>
+        <CardDescription>
+          Review M-Pesa confirmations, verify screenshots, and manage listing visibility. Refund returns access to pending, hides contacts, and signals tenants to upload a new proof.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="md:hidden space-y-4">
@@ -222,28 +281,42 @@ export function VacantPaymentsPanel() {
                   <div className="space-y-1 text-sm text-muted-foreground">
                     <p className="text-xs uppercase tracking-wide text-muted-foreground/80">Listing ID</p>
                     <p className="font-mono break-all text-foreground/80">{record.listingId}</p>
-                    <p><span className="font-medium text-foreground">Landlord:</span> {record.landlordName || 'Unknown'}</p>
+                    <p><span className="font-medium text-foreground">Landlord:</span> {record.landlordName || 'Unknown landlord'}</p>
                     <p><span className="font-medium text-foreground">Location:</span> {record.location || 'Unknown'}</p>
                     <p><span className="font-medium text-foreground">Amount:</span> Ksh {amountDisplay}</p>
                   </div>
 
-                  {record.confirmationText && (
-                    <p className="text-xs text-muted-foreground border rounded p-2 bg-muted/40 whitespace-pre-wrap">
-                      {record.confirmationText}
-                    </p>
-                  )}
+                  <div className="space-y-2">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground/80">Payment Confirmation</p>
+                    {record.confirmationText ? (
+                      <p className="text-xs text-muted-foreground border rounded p-2 bg-muted/40 whitespace-pre-wrap">
+                        {record.confirmationText}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No M-Pesa message provided.</p>
+                    )}
 
-                  {record.proofUploadUrl && (
-                    <div className="relative h-32 w-full overflow-hidden rounded border">
-                      <Image
-                        src={record.proofUploadUrl}
-                        alt="Payment proof"
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
-                    </div>
-                  )}
+                    {record.proofUploadUrl ? (
+                      <div className="space-y-2">
+                        <div className="relative h-32 w-full overflow-hidden rounded border">
+                          <Image
+                            src={record.proofUploadUrl}
+                            alt="Payment proof"
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                        </div>
+                        <Button asChild size="sm" variant="link" className="px-0 text-xs">
+                          <a href={record.proofUploadUrl} target="_blank" rel="noopener noreferrer">
+                            View full payment screenshot
+                          </a>
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No payment screenshot uploaded.</p>
+                    )}
+                  </div>
 
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant={record.visibilityStatus === 'visible' ? 'default' : 'outline'}>
@@ -262,10 +335,9 @@ export function VacantPaymentsPanel() {
             <TableHeader>
               <TableRow>
                 <TableHead>Listing</TableHead>
-                <TableHead>Landlord</TableHead>
+                <TableHead>Payment Confirmation</TableHead>
                 <TableHead>Property Details</TableHead>
                 <TableHead>Amount (KES)</TableHead>
-                <TableHead>Payment Proof</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Visibility</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -296,6 +368,7 @@ export function VacantPaymentsPanel() {
                       <div className="flex flex-col">
                         <span>{record.name || record.listingName || "Untitled listing"}</span>
                         <span className="text-xs text-muted-foreground">{record.listingId}</span>
+                        <span className="text-xs text-muted-foreground">Landlord: {record.landlordName || "Unknown landlord"}</span>
                         {submittedDate && (
                           <span className="text-xs text-muted-foreground">
                             Submitted {submittedDate}
@@ -304,9 +377,34 @@ export function VacantPaymentsPanel() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col text-sm">
-                        <span>{record.landlordName || "Unknown landlord"}</span>
-                        <span className="text-xs text-muted-foreground">{record.userId}</span>
+                      <div className="space-y-2">
+                        {record.confirmationText ? (
+                          <p className="text-xs text-muted-foreground border rounded p-2 bg-muted/40 whitespace-pre-wrap">
+                            {record.confirmationText}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No M-Pesa message provided.</p>
+                        )}
+                        {record.proofUploadUrl ? (
+                          <div className="space-y-2">
+                            <div className="relative h-20 w-32 overflow-hidden rounded border">
+                              <Image
+                                src={record.proofUploadUrl}
+                                alt="Payment proof"
+                                fill
+                                className="object-cover"
+                                unoptimized
+                              />
+                            </div>
+                            <Button asChild size="sm" variant="link" className="px-0 text-xs">
+                              <a href={record.proofUploadUrl} target="_blank" rel="noopener noreferrer">
+                                View payment screenshot
+                              </a>
+                            </Button>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No payment screenshot uploaded.</p>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -317,26 +415,6 @@ export function VacantPaymentsPanel() {
                       </div>
                     </TableCell>
                     <TableCell className="font-semibold">{amountDisplay}</TableCell>
-                    <TableCell>
-                      <div className="space-y-2">
-                        {record.confirmationText && (
-                          <p className="text-xs text-muted-foreground border rounded p-2 bg-muted/40 whitespace-pre-wrap">
-                            {record.confirmationText}
-                          </p>
-                        )}
-                        {record.proofUploadUrl && (
-                          <div className="relative h-20 w-32 overflow-hidden rounded border">
-                            <Image
-                              src={record.proofUploadUrl}
-                              alt="Payment proof"
-                              fill
-                              className="object-cover"
-                              unoptimized
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
                     <TableCell>{statusBadge(record.paymentStatus)}</TableCell>
                     <TableCell>
                       <Badge variant={record.visibilityStatus === "visible" ? "default" : "outline"}>
