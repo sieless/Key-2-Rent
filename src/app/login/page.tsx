@@ -65,8 +65,8 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-background">
       <Card className="mx-auto max-w-sm w-full">
         <CardHeader>
-          <div className="flex justify-center mb-4">
-            <Logo variant="icon" iconClassName="text-primary" />
+          <div className="flex items-center justify-center mb-4">
+            <Logo variant="icon" iconClassName="text-primary" iconSize={100} />
           </div>
           <CardTitle className="text-2xl text-center">Login</CardTitle>
           <CardDescription className="text-center">

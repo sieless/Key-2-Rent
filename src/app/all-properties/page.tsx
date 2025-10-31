@@ -230,9 +230,9 @@ export default function AllPropertiesPage() {
 
       const statusPriority: Record<Listing['status'], number> = {
         Vacant: 4,
-        'Available Soon': 3,
-        Occupied: 2,
-        'For Sale': 5,
+        'For Sale': 3,
+        'Available Soon': 2,
+        Occupied: 1,
       };
       const aPriority = statusPriority[a.status as Listing['status']] || 0;
       const bPriority = statusPriority[b.status as Listing['status']] || 0;

@@ -2,46 +2,56 @@ import Image from 'next/image';
 
 import { cn } from '@/lib/utils';
 
-const ICON_DIMENSION = 1024;
-const FULL_DIMENSION = 1024;
-
 interface LogoProps {
   variant?: 'full' | 'icon';
   className?: string;
   iconClassName?: string;
+  iconSize?: number;
+  fullHeight?: number;
 }
 
-/**
- * Timelaine Logo Component
- * - variant="full": Shows full logo with text (default)
- * - variant="icon": Shows icon only
- * Uses inline SVG for reliability
- */
-export function Logo({ variant = 'full', className, iconClassName }: LogoProps) {
+const LOGO_SOURCE_WIDTH = 561;
+const LOGO_SOURCE_HEIGHT = 449;
+
+export function Logo({
+  variant = 'full',
+  className,
+  iconClassName,
+  iconSize,
+  fullHeight,
+}: LogoProps) {
   if (variant === 'icon') {
+    const displaySize = iconSize ?? 48;
+
     return (
-      <div className={cn('relative flex items-center justify-center', className)}>
+      <div
+        className={cn('relative flex items-center justify-center', className)}
+        style={{ width: displaySize, height: displaySize }}
+      >
         <Image
-          src="/logos/timelaine-logo-icon.png"
+          src="/logos/timelainelogo.png"
           alt="Timelaine logo icon"
-          width={ICON_DIMENSION}
-          height={ICON_DIMENSION}
-          className={cn('h-10 w-10 object-contain', iconClassName)}
+          width={LOGO_SOURCE_WIDTH}
+          height={LOGO_SOURCE_HEIGHT}
+          className={cn('h-full w-full object-contain', iconClassName)}
           priority
         />
       </div>
     );
   }
 
+  const displayHeight = fullHeight ?? 40;
+
   // Full logo
   return (
-    <div className={cn('relative flex items-center', className)}>
+    <div className={cn('relative flex items-center justify-center', className)}>
       <Image
-        src="/logos/timelaine-logo-full.png"
+        src="/logos/timelainelogo.png"
         alt="Timelaine logo"
-        width={FULL_DIMENSION}
-        height={FULL_DIMENSION}
-        className={cn('h-10 w-auto object-contain', iconClassName)}
+        width={LOGO_SOURCE_WIDTH}
+        height={LOGO_SOURCE_HEIGHT}
+        className={cn('object-contain', iconClassName)}
+        style={{ height: displayHeight, width: 'auto' }}
         priority
       />
     </div>

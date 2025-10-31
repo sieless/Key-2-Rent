@@ -50,7 +50,7 @@ export function Header({ onPostClick }: HeaderProps) {
     <header className="bg-card shadow-sm sticky top-0 z-40">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         <Link href="/">
-          <Logo iconClassName="text-primary" />
+          <Logo iconClassName="text-primary" fullHeight={50} />
         </Link>
         <div className="flex items-center gap-2 sm:gap-4">
           {profileLoading ? (
