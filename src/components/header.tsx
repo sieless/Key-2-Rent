@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { useAuth, useUser } from '@/firebase';
@@ -47,8 +48,19 @@ export function Header({ onPostClick }: HeaderProps) {
   };
 
   return (
-    <header className="bg-card shadow-sm sticky top-0 z-40">
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+    <header className="relative bg-card shadow-sm sticky top-0 z-40 overflow-hidden">
+      <div className="absolute inset-0 hidden dark:block">
+        <Image
+          src="/backgrounds/timelaine-header-dark.png"
+          alt="Timelaine dark theme header background"
+          fill
+          sizes="100vw"
+          className="object-cover"
+          priority
+        />
+        <div className="absolute inset-0 bg-slate-900/70 backdrop-blur" />
+      </div>
+      <nav className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         <Link href="/">
           <Logo iconClassName="text-primary" fullHeight={50} />
         </Link>

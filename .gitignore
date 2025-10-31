@@ -125,6 +125,7 @@
 /node_modules
 /.pnp
 .pnp.*
+.venv/
 .yarn/*
 !.yarn/patches
 !.yarn/plugins

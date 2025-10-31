@@ -1,5 +1,10 @@
 import { ImageResponse } from 'next/og'
 
+const ICON_DATA_URL =
+  'data:image/png;base64,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'
+
 // Image metadata
 export const size = {
   width: 32,
@@ -11,35 +16,11 @@ export const contentType = 'image/png'
 export default function Icon() {
   return new ImageResponse(
     (
-      <div
-        style={{
-          background: '#2563eb',
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: '6px',
-        }}
-      >
-        <span
-          style={{
-            width: '24px',
-            height: '24px',
-            background: 'white',
-            borderRadius: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '12px',
-            fontWeight: 700,
-            color: '#2563eb',
-            fontFamily: 'sans-serif',
-          }}
-        >
-          K2
-        </span>
-      </div>
+      <img
+        src={ICON_DATA_URL}
+        alt="Timelaine favicon"
+        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+      />
     ),
     {
       ...size,

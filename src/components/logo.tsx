@@ -33,7 +33,15 @@ export function Logo({
           alt="Timelaine logo icon"
           width={LOGO_SOURCE_WIDTH}
           height={LOGO_SOURCE_HEIGHT}
-          className={cn('h-full w-full object-contain', iconClassName)}
+          className={cn('h-full w-full object-contain dark:hidden', iconClassName)}
+          priority
+        />
+        <Image
+          src="/logos/timelainelogo-white.png"
+          alt="Timelaine logo icon light"
+          width={LOGO_SOURCE_WIDTH}
+          height={LOGO_SOURCE_HEIGHT}
+          className={cn('hidden h-full w-full object-contain dark:block', iconClassName)}
           priority
         />
       </div>
@@ -50,7 +58,16 @@ export function Logo({
         alt="Timelaine logo"
         width={LOGO_SOURCE_WIDTH}
         height={LOGO_SOURCE_HEIGHT}
-        className={cn('object-contain', iconClassName)}
+        className={cn('object-contain dark:hidden', iconClassName)}
+        style={{ height: displayHeight, width: 'auto' }}
+        priority
+      />
+      <Image
+        src="/logos/timelainelogo-white.png"
+        alt="Timelaine logo light"
+        width={LOGO_SOURCE_WIDTH}
+        height={LOGO_SOURCE_HEIGHT}
+        className={cn('hidden object-contain dark:block', iconClassName)}
         style={{ height: displayHeight, width: 'auto' }}
         priority
       />
