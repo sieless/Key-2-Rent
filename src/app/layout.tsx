@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { InactivityWarningDialog } from '@/components/inactivity-warning-dialog';
 import { Analytics } from '@vercel/analytics/next';
+import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://timelaine.com'),
@@ -114,6 +115,7 @@ export default function RootLayout({
             <FirebaseClientProvider>
               {children}
               <InactivityWarningDialog />
+              <PwaInstallPrompt />
             </FirebaseClientProvider>
             <Toaster />
             <Analytics />
